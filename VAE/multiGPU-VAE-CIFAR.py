@@ -18,9 +18,10 @@ import tqdm
 flags = tf.flags
 flags.DEFINE_integer('batch_size', 50, 'size of batches to use(per GPU)')
 flags.DEFINE_integer('n_hidden', 2048, 'a number of hidden layer')
-flags.DEFINE_string('logdir', 'multiGPU-VAE-CIFAR_logs/', 'saved image directory')
+flags.DEFINE_string('log_dir', 'multiGPU-VAE-CIFAR_logs/', 'saved image directory')
 flags.DEFINE_integer('max_epoch', 10000, 'a number of epochs to run')
 flags.DEFINE_integer('n_gpu', 2, 'the number of gpus to use')
+flags.DEFINE_string('data_dir', '/home/mlg/ihcho/data', 'data directory')
 FLAGS = flags.FLAGS
 
 dim1 = 32 # first dimension of input data
@@ -196,23 +197,23 @@ def plot_network_output(example_data):
 """
 if __name__ == '__main__':
 
-    # Create logdir
-    common.delete_and_create_directory(FLAGS.logdir)
-    img_dir = os.path.join(FLAGS.logdir, 'imgs')
+    # Create log directory
+    common.delete_and_create_directory(FLAGS.log_dir)
+    img_dir = os.path.join(FLAGS.log_dir, 'imgs')
     common.delete_and_create_directory(img_dir)
-    model_dir = os.path.join(FLAGS.logdir, 'models')
+    model_dir = os.path.join(FLAGS.log_dir, 'models')
     common.delete_and_create_directory(model_dir)
 
     # Create tensorboard summary data dir
-    summary_dir = os.path.join(FLAGS.logdir, 'board')
+    summary_dir = os.path.join(FLAGS.log_dir, 'board')
     common.delete_and_create_directory(summary_dir)
 
     # Create logfile
-    f = open(os.path.join(FLAGS.logdir, 'training.log'), 'w')
+    f = open(os.path.join(FLAGS.log_dir, 'training.log'), 'w')
 
     # load CIFAR-10
-    trainx, trainy = cifar10_data.load('/home/mlg/ihcho/data/', subset='train')
-    testx, testy = cifar10_data.load('/home/mlg/ihcho/data/', subset='test')
+    trainx, trainy = cifar10_data.load(FLAGS.data_dir, subset='train')
+    testx, testy = cifar10_data.load(FLAGS.data_dir, subset='test')
 
     # Normalize the dataset between 0 and 1
     trainx = (trainx) / 255.
