@@ -18,7 +18,7 @@ import tqdm
 flags = tf.flags
 flags.DEFINE_integer('batch_size', 50, 'size of batches to use(per GPU)')
 flags.DEFINE_integer('n_hidden', 2048, 'a number of hidden layer')
-flags.DEFINE_string('logdir', 'logs/', 'saved image directory')
+flags.DEFINE_string('logdir', 'multiGPU-VAE-CIFAR_logs/', 'saved image directory')
 flags.DEFINE_integer('max_epoch', 10000, 'a number of epochs to run')
 flags.DEFINE_integer('n_gpu', 2, 'the number of gpus to use')
 FLAGS = flags.FLAGS
