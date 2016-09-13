@@ -2,7 +2,9 @@ import os
 import numpy as np
 import prettytensor as pt
 import tensorflow as tf
+import matplotlib
 import matplotlib.pyplot as plt
+matplotlib.use('agg')
 
 from tf_utils.pt.deconv import deconv2d
 import tf_utils.data.cifar10_data as cifar10_data
@@ -58,6 +60,7 @@ def encoder(x):
                 conv2d(5, 128, stride=2).
                 conv2d(5, 256, stride=2).
                 flatten())
+    #print lay_end.get_shape()
     z_mean = lay_end.fully_connected(FLAGS.n_hidden, activation_fn=None)
     z_log_sigma_sq = lay_end.fully_connected(FLAGS.n_hidden, activation_fn=None)
 
@@ -178,9 +181,10 @@ def plot_network_output(example_data):
         ax[(1,i)].axis('off')
         ax[(2,i)].axis('off')
 
-    fig.suptitle('Top: random points in z space | Bottom: inputs | Middle: reconstructions')
+    fig.suptitle('Top: random points in z space | Middle: inputs | Bottom: reconstructions')
 #    plt.show()
     fig.savefig(''.join([img_dir, '/test_', str(epoch).zfill(4), '.png']), dpi=100)
+    plt.clf()
 """
     fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20,10), linewidth=4)
     KL_plt, = plt.semilogy((KL_loss_list), linewidth=4, ls='-', color='r', alpha=.5, label='KL')
@@ -211,6 +215,11 @@ if __name__ == '__main__':
     # Create logfile
     f = open(os.path.join(FLAGS.log_dir, 'training.log'), 'w')
 
+    '''
+    # print network architecture
+    f.write('batch_size=%d\n' %(FLAGS.batch_size))
+    '''
+
     # load CIFAR-10
     trainx, trainy = cifar10_data.load(FLAGS.data_dir, subset='train')
     testx, testy = cifar10_data.load(FLAGS.data_dir, subset='test')
@@ -230,6 +239,12 @@ if __name__ == '__main__':
     regular_loss_list = []
     reconst_loss_list = []
     SSE_loss_list = []
+
+    """
+    # test to calculate encoded shape
+    x = tf.placeholder(tf.float32, (FLAGS.batch_size, dim1 * dim2 * dim3))
+    encoder(x)
+    """
     
     with graph.as_default():
         # Create a variable to count number of train calls
@@ -261,12 +276,11 @@ if __name__ == '__main__':
                     # Calculate the loss for this tower
                     SSE_loss, regular_loss, reconst_loss = \
                             loss(next_batch, recon_x, z_log_sigma_sq, z_mean)
-                    '''
+                    
                     # logging tensorboard
-                    tf.scalar_summary('Tower_%d SSE_loss' % (i), SSE_loss)
-                    tf.scalar_summary('Tower_%d regular_loss' % (i), regular_loss)
-                    tf.scalar_summary('Tower_%d reconst_loss' % (i), reconst_loss)
-                    '''
+                    tf.scalar_summary('Tower_%d/SSE_loss' % (i), SSE_loss)
+                    tf.scalar_summary('Tower_%d/regular_loss' % (i), regular_loss)
+                    tf.scalar_summary('Tower_%d/reconst_loss' % (i), reconst_loss)                   
 
                     # specify loss to parameters
                     params = tf.trainable_variables()
@@ -287,6 +301,14 @@ if __name__ == '__main__':
                     tower_grads_e.append(grads_e)
                     tower_grads_d.append(grads_d)
 
+#        # logging tensorboard
+#        img_origin = tf.reshape(next_batch, (FLAGS.batch_size, dim1, dim2, dim3))
+#        img_recon = tf.reshape(recon_x, (FLAGS.batch_size, dim1, dim2, dim3))
+#        img_gener = tf.reshape(sample_x, (FLAGS.batch_size, dim1, dim2, dim3))
+#        tf.image_summary('original', img_origin)
+#        tf.image_summary('reconstruction', img_recon)
+#        tf.image_summary('generation', img_gener)
+
         # Average the gradients
         grads_e = average_gradient(tower_grads_e)
         grads_d = average_gradient(tower_grads_d)
@@ -295,15 +317,17 @@ if __name__ == '__main__':
         train_E = opt_E.apply_gradients(grads_e, global_step=global_step)
         train_D = opt_D.apply_gradients(grads_d, global_step=global_step)
 
-        # Merge all the summaries and write them out
-        merged = tf.merge_all_summaries()
-        board_writer = tf.train.SummaryWriter(summary_dir, graph)
 
         # Start the Session
         init = tf.initialize_all_variables()
         saver = tf.train.Saver()
         config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=True)
         sess = tf.InteractiveSession(graph=graph, config=config)
+
+        # Merge all the summaries and write them out
+        merged = tf.merge_all_summaries()
+        board_writer = tf.train.SummaryWriter(summary_dir, sess.graph)
+
         sess.run(init)
 
     epoch = 0
@@ -332,7 +356,7 @@ if __name__ == '__main__':
                 else:
                     next_batches = np.concatenate((next_batches, each_batches), axis=0)
 
-            _, _, regular_err, reconst_err, SSE_err, = \
+            _, _, regular_err, reconst_err, SSE_err = \
                     sess.run([train_E, train_D, regular_loss, reconst_loss, SSE_loss],
                             {lr_E: e_current_lr, lr_D: d_current_lr, all_input: next_batches})
 
@@ -350,17 +374,18 @@ if __name__ == '__main__':
         SSE_e /= total_batch
 
         # print display network output
-        print('Epoch: ' + str(epoch) + '  regular: ' + str(regular_e) + '   reconst: ' + str(reconst_e) + '   SSE: ' + str(SSE_e))
-        f.write('Epoch: ' + str(epoch) + '  regular: ' + str(regular_e) + '   reconst: ' + str(reconst_e) + '   SSE: ' + str(SSE_e))
+        print('Epoch: %d\t regular: %.4f\t reconst: %.4f\t SSE: %.6f' %(epoch, regular_e, reconst_e, SSE_e))
+        f.write('Epoch: %d\t regular: %.4f\t reconst: %.4f\t SSE: %.6f\n' %(epoch, regular_e, reconst_e, SSE_e))
+        f.flush()
         plot_network_output(next_batches)
+
+        # Write Tensorboard log
+        summary = sess.run(merged, feed_dict={all_input: next_batches})
+        board_writer.add_summary(summary, epoch)
 
         if epoch % 100 == 0:
             # save network
             saver.save(sess, ''.join([model_dir, '/cifar_multiGPU_' + str(epoch).zfill(4), '.tfmod']))
-
-#        if epoch % 10 == 0:
-#            summary = sess.run(merged)
-#            board_writer.add_summary(summary, epoch)
 
         epoch += 1
 f.close()
