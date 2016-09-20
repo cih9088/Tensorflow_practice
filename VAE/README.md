@@ -5,5 +5,5 @@ All of the codes are implemented using multiple GPU settings.
 
 
 example
-```python multiGPU-VAE-CIFAR.py --n_gpu 2 --data_dir /home/mlg/ihcho/data````
+```python multiGPU-VAE-CIFAR.py --n_gpu 2 --data_dir /home/mlg/ihcho/data```
 
