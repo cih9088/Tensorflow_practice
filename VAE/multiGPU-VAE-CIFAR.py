@@ -20,7 +20,7 @@ import tqdm
 flags = tf.flags
 flags.DEFINE_integer('batch_size', 50, 'size of batches to use(per GPU)')
 flags.DEFINE_integer('n_hidden', 2048, 'a number of hidden layer')
-flags.DEFINE_string('log_dir', 'multiGPU-VAE-CIFAR_logs/', 'saved image directory')
+flags.DEFINE_string('log_dir', 'VAE-CIFAR_logs/', 'saved image directory')
 flags.DEFINE_integer('max_epoch', 10000, 'a number of epochs to run')
 flags.DEFINE_integer('n_gpu', 2, 'the number of gpus to use')
 flags.DEFINE_string('data_dir', '/home/mlg/ihcho/data', 'data directory')
@@ -348,17 +348,17 @@ if __name__ == '__main__':
             #e_current_lr = e_learning_rate * sigmoid(np.mean(d_real), -.5, 15)
             #d_current_lr = d_learning_rate * sigmoid(np.mean(d_real), -.5, 15)
 
-            next_batches = np.array([])
+            next_batch = np.array([])
             for j in xrange(FLAGS.n_gpu):
-                each_batches = iter_.next()
-                if next_batches.size == 0:
-                    next_batches = each_batches
+                partial_batch = iter_.next()
+                if next_batch.size == 0:
+                    next_batch = partial_batch
                 else:
-                    next_batches = np.concatenate((next_batches, each_batches), axis=0)
+                    next_batch = np.concatenate((next_batch, partial_batch), axis=0)
 
             _, _, regular_err, reconst_err, SSE_err = \
                     sess.run([train_E, train_D, regular_loss, reconst_loss, SSE_loss],
-                            {lr_E: e_current_lr, lr_D: d_current_lr, all_input: next_batches})
+                            {lr_E: e_current_lr, lr_D: d_current_lr, all_input: next_batch})
 
             regular_e += regular_err
             reconst_e += reconst_err
@@ -377,10 +377,10 @@ if __name__ == '__main__':
         print('Epoch: %d\t regular: %.4f\t reconst: %.4f\t SSE: %.6f' %(epoch, regular_e, reconst_e, SSE_e))
         f.write('Epoch: %d\t regular: %.4f\t reconst: %.4f\t SSE: %.6f\n' %(epoch, regular_e, reconst_e, SSE_e))
         f.flush()
-        plot_network_output(next_batches)
+        plot_network_output(next_batch)
 
         # Write Tensorboard log
-        summary = sess.run(merged, feed_dict={all_input: next_batches})
+        summary = sess.run(merged, feed_dict={all_input: next_batch})
         board_writer.add_summary(summary, epoch)
 
         if epoch % 100 == 0:

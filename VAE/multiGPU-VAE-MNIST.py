@@ -19,9 +19,9 @@ import tqdm
 
 flags = tf.flags
 flags.DEFINE_integer('batch_size', 50, 'size of batches to use(per GPU)')
-flags.DEFINE_integer('n_hidden', 20, 'a number of hidden layer')
-flags.DEFINE_string('log_dir', 'multiGPU-VAE-MNIST_logs/', 'saved image directory')
-flags.DEFINE_integer('max_epoch', 100, 'a number of epochs to run')
+flags.DEFINE_integer('n_hidden', 10, 'a number of hidden layer')
+flags.DEFINE_string('log_dir', 'VAE-MNIST_logs/', 'saved image directory')
+flags.DEFINE_integer('max_epoch', 500, 'a number of epochs to run')
 flags.DEFINE_integer('n_gpu', 2, 'the number of gpus to use')
 flags.DEFINE_string('data_dir', '/home/mlg/ihcho/data', 'data directory')
 FLAGS = flags.FLAGS
@@ -30,36 +30,23 @@ dim1 = 28 # first dimension of input data
 dim2 = 28 # second dimension of input data
 dim3 = 1 # third dimension of input data (colors)
 ### we can train our different networks  with different learning rates if we want to
-e_learning_rate = 1e-3
-d_learning_rate = 1e-3
+learning_rate = 1e-3
 
 gpus = np.arange(0, FLAGS.n_gpu)
 os.environ["CUDA_VISIBLE_DEVICES"]=','.join([str(i) for i in gpus])
 
-def sigmoid(x, shift, mult):
-    """
-    Using this sigmoid to discourage one network overpowering the other
-    """
-    return 1 / (1 + math.exp(-(x+shift)*mult))
-
 def create_image(im):
-    return np.reshape(im, (dim1, dim2, dim3))
+    return np.reshape(im, (dim1, dim2))
 
 def encoder(x):
     """ Create encoder network
     Args:
-        x: a btch of flattend images [FLAGS.batch_size, 32*32*3]
+        x: a btch of flattend images [FLAGS.batch_size, 28*28*1]
     Returns:
         A tensor that express the encoder network
             # The transformation is parameterized and can be learned.
-            # returns network output, mean, setd
+            # returns network output, mean, std
     """
-#    lay_end = (pt.wrap(x).
-#                reshape([FLAGS.batch_size, dim1, dim2, dim3]).
-#                conv2d(5, 64, stride=2).
-#                conv2d(5, 128, stride=2).
-#                conv2d(5, 256, stride=2).
-#                flatten())
     lay_end = (pt.wrap(x).
             fully_connected(200))
     #print lay_end.get_shape()
@@ -76,18 +63,9 @@ def decoder(z):
     Returns:
         A tensor that express the generator network
     """
-#    return (pt.wrap(z).
-#            fully_connected(4*4*256).reshape([FLAGS.batch_size, 4, 4, 256]).
-#            deconv2d(5, 256, stride=2).
-#            deconv2d(5, 128, stride=2).
-#            deconv2d(5, 32, stride=2).
-#            deconv2d(1, dim3, stride=1, activation_fn=tf.sigmoid).
-#            flatten()
-#            )
-
     return (pt.wrap(z).
             fully_connected(200).
-            fully_connected(dim1 * dim2))
+            fully_connected(dim1 * dim2, activation_fn=tf.nn.sigmoid))
 
 def inference(x):
     """
@@ -98,7 +76,6 @@ def inference(x):
     eps = tf.random_normal((FLAGS.batch_size, FLAGS.n_hidden), 0, 1) # normal dist for VAE
 
     with pt.defaults_scope(activation_fn=tf.nn.elu,
-                            batch_normalize=True,
                             learned_moments_update_rate=0.0003,
                             variance_epsilon=0.001,
                             scale_after_normalization=True):
@@ -116,17 +93,15 @@ def inference(x):
 
 def loss(x, recon_x, z_log_sigma_sq, z_mean):
     """
-    Loss function for SSE, KL divergence, Discrim, Generator, Lth Layer Similarity
+    Loss function for SSE, KL divergence, reconstruction loss
     """
-    ### We don't actually use SSE(MSE) loss for anything (but maybe prettraining)
-    SSE_loss = tf.reduce_mean(tf.square(x - recon_x)) # This is what a normal VAE uses
+    # We don't actually use SSE(MSE) loss for anything. It is just for information during training
+    SSE_loss = tf.reduce_mean(tf.square(x - recon_x))
 
-    # We clip gradients of KL divergence to prevent NANs
-    #KL_loss = tf.reduce_sum( -0.5 * tf.reduce_sum(1 + tf.clip_by_value(z_x_log_sigma_sq, -10.0, 10.0) - tf.square(tf.clip_by_value(z_x_mean, -10.0, 10.0)) - tf.exp(tf.clip_by_value(z_x_log_sigma_sq, -10.0, 10)),1))/dim1/dim2/dim3
+    # regularization loss (KL loss)
     regular_loss = -0.5 * tf.reduce_sum(1 + z_log_sigma_sq - tf.square(z_mean) - tf.exp(z_log_sigma_sq))
 
-    # Generator Loss
-    #G_loss = tf.reduce_mean(-1. * (tf.log(tf.clip_by_value(d_x_p, 1e-5, 1.0)))) #+ tf.log(tf.clip_by_value(1.0 - d_x, 1e-5, 1.0)))
+    # reconstruction loss
     reconst_loss = -tf.reduce_sum(x * tf.log(recon_x + 1e-10) + (1.0 - x) * tf.log(1.0 - recon_x + 1e-10))
 
     return SSE_loss, regular_loss, reconst_loss
@@ -191,20 +166,7 @@ def plot_network_output(example_data):
 #    plt.show()
     fig.savefig(''.join([img_dir, '/test_', str(epoch).zfill(4), '.png']), dpi=100)
     plt.clf()
-"""
-    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(20,10), linewidth=4)
-    KL_plt, = plt.semilogy((KL_loss_list), linewidth=4, ls='-', color='r', alpha=.5, label='KL')
-    D_plt, = plt.semilogy((D_loss_list), linewidth=4, ls='-', color='b', alpha=.5, label='D')
-    G_plt, = plt.semilogy((G_loss_list), linewidth=4, ls='-', color='k', alpha=.5, label='G')
-    SSE_plt, = plt.semilogy((SSE_loss_list), linewidth=4, ls='-', color='g', alpha=.5, label='SSE')
-    LL_plt, = plt.semilogy((LL_loss_list), linewidth=4, ls='-', color='m', alpha=.5, label='LL')
 
-    axes = plt.gca()
-    leg = plt.legend(handles=[KL_plt, D_plt, G_plt, SSE_plt, LL_plt], fontsize=20)
-    leg.get_frame().set_alpha(0.5)
-#    plt.show()
-    fig.savefig(''.join(['imgs/test_', str(epoch).zfill(4), '_r.png']), dpi=100)
-"""
 if __name__ == '__main__':
 
     # Create log directory
@@ -226,7 +188,7 @@ if __name__ == '__main__':
     f.write('batch_size=%d\n' %(FLAGS.batch_size))
     '''
 
-    # load CIFAR-10
+    # load mnist
     trainx, trainy = mnist_data.load(FLAGS.data_dir, subset='train')
     testx, testy = mnist_data.load(FLAGS.data_dir, subset='test')
 
@@ -235,12 +197,6 @@ if __name__ == '__main__':
     testx = np.reshape(testx, (testx.shape[0], dim1 * dim2 * dim3))
 
     graph = tf.Graph()
-
-    # Make lists to save the losses to
-    # You should probably just be using tensorboard to do any visualization
-    regular_loss_list = []
-    reconst_loss_list = []
-    SSE_loss_list = []
 
     """
     # test to calculate encoded shape
@@ -254,14 +210,11 @@ if __name__ == '__main__':
 
         # different optimizers are needed for different learning rates
         # (uing the same learning rate seems to work fine though)
-        lr_D = tf.placeholder(tf.float32, shape=[])
-        lr_E = tf.placeholder(tf.float32, shape=[])
-        opt_D = tf.train.AdamOptimizer(lr_D, epsilon=1.0)
-        opt_E = tf.train.AdamOptimizer(lr_E, epsilon=1.0)
+        lr = tf.placeholder(tf.float32, shape=[])
+        opt = tf.train.AdamOptimizer(lr, epsilon=1.0)
 
         # These are the lists of gradients for each tower
-        tower_grads_e = []
-        tower_grads_d = []
+        tower_grads = []
 
         all_input = tf.placeholder(tf.float32, [FLAGS.batch_size*FLAGS.n_gpu, dim1*dim2*dim3])
 
@@ -286,22 +239,18 @@ if __name__ == '__main__':
 
                     # specify loss to parameters
                     params = tf.trainable_variables()
-                    E_params = [i for i in params if 'enc' in i.name]
-                    D_params = [i for i in params if 'dec' in i.name]
 
-                    # Calculate the losses specific to encoder, generator, decoder
+                    # Calculate the losses
                     Loss = regular_loss + reconst_loss
 
                     # Reuse variables for the next tower
                     tf.get_variable_scope().reuse_variables()
 
-                    # Calculate the gradients for the batch of data on this CIFAR tower
-                    grads_e = opt_E.compute_gradients(Loss, var_list=E_params)
-                    grads_d = opt_D.compute_gradients(Loss, var_list=D_params)
+                    # Calculate the gradients for the batch of data on this MNIST tower
+                    grads = opt.compute_gradients(Loss, var_list=params)
 
                     # Keep track of the gradients across all towers
-                    tower_grads_e.append(grads_e)
-                    tower_grads_d.append(grads_d)
+                    tower_grads.append(grads)
 
 #        # logging tensorboard
 #        img_origin = tf.reshape(next_batch, (FLAGS.batch_size, dim1, dim2, dim3))
@@ -312,13 +261,10 @@ if __name__ == '__main__':
 #        tf.image_summary('generation', img_gener)
 
         # Average the gradients
-        grads_e = average_gradient(tower_grads_e)
-        grads_d = average_gradient(tower_grads_d)
+        grads = average_gradient(tower_grads)
 
         # apply the gradients with our optimizers
-        train_E = opt_E.apply_gradients(grads_e, global_step=global_step)
-        train_D = opt_D.apply_gradients(grads_d, global_step=global_step)
-
+        train = opt.apply_gradients(grads, global_step=global_step)
 
         # Start the Session
         init = tf.initialize_all_variables()
@@ -338,38 +284,28 @@ if __name__ == '__main__':
     # how many batches are in an epoch
     total_batch = int(np.floor(trainx.shape[0]/(FLAGS.batch_size * FLAGS.n_gpu)))
 
-    e_current_lr = e_learning_rate
-    d_current_lr = d_learning_rate
+    current_lr = learning_rate
 
-    while epoch < FLAGS.max_epoch:
+    for epoch in range(FLAGS.max_epoch):
         regular_e = reconst_e = SSE_e = 0
         for i in tqdm.tqdm(range(total_batch)):
             iter_ = manage.data_iterate(trainx, FLAGS.batch_size)
 
-            ## balance dec and descrim
-            #e_current_lr = e_learning_rate * sigmoid(np.mean(d_real), -.5, 15)
-            #d_current_lr = d_learning_rate * sigmoid(np.mean(d_real), -.5, 15)
-
-            next_batches = np.array([])
+            next_batch = np.array([])
             for j in xrange(FLAGS.n_gpu):
-                each_batches = iter_.next()
-                if next_batches.size == 0:
-                    next_batches = each_batches
+                partial_batch = iter_.next()
+                if next_batch.size == 0:
+                    next_batch = partial_batch
                 else:
-                    next_batches = np.concatenate((next_batches, each_batches), axis=0)
+                    next_batch = np.concatenate((next_batch, partial_batch), axis=0)
 
-            _, _, regular_err, reconst_err, SSE_err = \
-                    sess.run([train_E, train_D, regular_loss, reconst_loss, SSE_loss],
-                            {lr_E: e_current_lr, lr_D: d_current_lr, all_input: next_batches})
+            _, regular_err, reconst_err, SSE_err = \
+                    sess.run([train, regular_loss, reconst_loss, SSE_loss],
+                            {lr: current_lr, all_input: next_batch})
 
             regular_e += regular_err
             reconst_e += reconst_err
             SSE_e += SSE_err
-
-            # Save our lists
-            regular_loss_list.append(regular_err)
-            reconst_loss_list.append(reconst_err)
-            SSE_loss_list.append(SSE_err)
 
         regular_e /= total_batch
         reconst_e /= total_batch
@@ -379,15 +315,18 @@ if __name__ == '__main__':
         print('Epoch: %d\t regular: %.4f\t reconst: %.4f\t SSE: %.6f' %(epoch, regular_e, reconst_e, SSE_e))
         f.write('Epoch: %d\t regular: %.4f\t reconst: %.4f\t SSE: %.6f\n' %(epoch, regular_e, reconst_e, SSE_e))
         f.flush()
-        plot_network_output(next_batches)
+        plot_network_output(next_batch)
 
         # Write Tensorboard log
-        summary = sess.run(merged, feed_dict={all_input: next_batches})
+        summary = sess.run(merged, feed_dict={all_input: next_batch})
         board_writer.add_summary(summary, epoch)
 
-        epoch += 1
+        next_batch = np.reshape(next_batch, (FLAGS.batch_size*FLAGS.n_gpu, dim1, dim2))
+        tiled_img = common.img_tile(next_batch, border_color=1.0, stretch=True)
+        common.plot_img(tiled_img, 'generated_MNIST')
+        plt.savefig(''.join([img_dir, '/generated_', str(epoch).zfill(4), '.png']), dpi=100)
 
     # save network
-    saver.save(sess, ''.join([model_dir, '/cifar_multiGPU_' + str(epoch).zfill(4), '.tfmod']))
+    saver.save(sess, ''.join([model_dir, '/mnist_multiGPU_' + str(epoch).zfill(4), '.tfmod']))
 
 f.close()
