@@ -23,6 +23,20 @@ def plot_img(img, title):
     plt.axis('off')
     plt.tight_layout()
 
+def plot_generative_output(sample_tensor, input_tensor, output_tensor, examples=8):
+    """ Just plots the output of the network, error, reconstructions, etc
+    """
+    fig, ax = plt.subplots(nrows=3, ncols=examples, figsize=(18, 6))
+    for i in xrange(examples):
+        ax[(0,i)].imshow(sample_tensor[i], cmap=plt.cm.gray, interpolation='nearest')
+        ax[(1,i)].imshow(input_tensor[i], cmap=plt.cm.gray, interpolation='nearest')
+        ax[(2,i)].imshow(output_tensor[i], cmap=plt.cm.gray, interpolation='nearest')
+        ax[(0,i)].axis('off')
+        ax[(1,i)].axis('off')
+        ax[(2,i)].axis('off')
+
+    fig.suptitle('Top: random points in z space | Middle: inputs | Bottom: reconstructions')
+
 def img_stretch(img):
     img = img.astype(float)
     img -= np.min(img)
