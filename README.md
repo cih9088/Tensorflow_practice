@@ -6,3 +6,6 @@ collections of frequently used functions
 
 ## VAE
 Variaional Autoencoder
+
+## DRAW
+Deep Recurrent Attentive Writer
