@@ -38,7 +38,7 @@ A = 28 # width
 B = 28 # height
 C = 1 # channel
 
-def filterbank_matrices(g_x, g_y, sigma_sq, delta, N, A, B, epsilon=1e-9):
+def filterbank_matrices(g_x, g_y, sigma_sq, delta, N, A, B, epsilon=1e-8):
     
     # (N) to (1, N)
     i_s = tf.reshape(tf.cast(tf.range(N), tf.float32), [1, -1])
@@ -127,11 +127,11 @@ def transform_params(input_tensor, N, A, B):
 
     return g_x, g_y, sigma_sq, delta, gamma
 
-def get_vae_loss(mean, stddev, epsilon=1e-9):
-    return tf.reduce_sum(-0.5 * (1 + tf.log(tf.square(stddev) + epsilon) - tf.square(mean) - tf.square(stddev)))
+def get_vae_loss(mean, stddev, epsilon=1e-8):
+    return tf.reduce_sum(-0.5 * (1.0 + 2.0 * tf.log(stddev + epsilon) - tf.square(mean) - tf.square(stddev)))
 
-def get_reconst_loss(output, target, epsilon=1e-9):
-    return -tf.reduce_sum(target * tf.log(output + epsilon) + (1 - target) * tf.log(1 - output + epsilon))
+def get_reconst_loss(output, target, epsilon=1e-8):
+    return -tf.reduce_sum(target * tf.log(output + epsilon) + (1.0 - target) * tf.log(1.0 - output + epsilon))
 
 
 if __name__ == '__main__':
@@ -257,7 +257,7 @@ if __name__ == '__main__':
     train = pt.apply_optimizer(optimizer, losses=[loss])
 
     init = tf.initialize_all_variables()
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=0)
 
     # how many batches are in an epoch
     total_batch = int(np.floor(trainx.shape[0]/(FLAGS.batch_size)))
@@ -285,9 +285,9 @@ if __name__ == '__main__':
         else:
             for epoch in range(FLAGS.max_epoch):
                 training_loss = 0
+                iter_ = manage.data_iterate(trainx, FLAGS.batch_size)
 
                 for i in tqdm.tqdm(range(total_batch)):
-                    iter_ = manage.data_iterate(trainx, FLAGS.batch_size)
 
                     next_batch = iter_.next()
                     next_batch = np.reshape(next_batch, [-1, B, A, C])
@@ -296,8 +296,8 @@ if __name__ == '__main__':
                     training_loss += loss_value
 
                 training_loss = training_loss / total_batch
-                print ("Epoch: %d|\t Loss: %f" %(epoch, training_loss))
-                f.write('Epoch: %d|\t Loss: %f\n' %(epoch, training_loss))
+                print('Epoch: %d|\t Training Loss: %f' %(epoch, training_loss))
+                f.write('Epoch: %d|\t Training Loss: %f\n' %(epoch, training_loss))
                 f.flush()
 
                 if epoch % 10 == 0:
@@ -310,7 +310,7 @@ if __name__ == '__main__':
                     common.plt.savefig(n, dpi=100)
                     common.plt.clf()
 
-                if (epoch+1) % 100 == 0:
+                if (epoch) % 20 == 0:
                     save_path = saver.save(sess, model_dir + '/' + str(epoch).zfill(0) + '.ckpt')
 
 f.close()
