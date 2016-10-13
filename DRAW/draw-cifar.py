@@ -39,7 +39,7 @@ A = 32 # width
 B = 32 # height
 C = 3 # channel
 
-def filterbank_matrices(g_x, g_y, sigma_sq, delta, N, A, B, epsilon=1e-9):
+def filterbank_matrices(g_x, g_y, sigma_sq, delta, N, A, B, epsilon=1e-8):
     
     # (N) to (1, N)
     i_s = tf.reshape(tf.cast(tf.range(N), tf.float32), [1, -1])
@@ -128,11 +128,11 @@ def transform_params(input_tensor, N, A, B):
 
     return g_x, g_y, sigma_sq, delta, gamma
 
-def get_vae_loss(mean, stddev, epsilon=1e-9):
-    return tf.reduce_sum(-0.5 * (1 + tf.log(tf.square(stddev) + epsilon) - tf.square(mean) - tf.square(stddev)))
+def get_vae_loss(mean, stddev, epsilon=1e-8):
+    return tf.reduce_sum(-0.5 * (1.0 + 2.0 * tf.log(stddev + epsilon) - tf.square(mean) - tf.square(stddev)))
 
-def get_reconst_loss(output, target, epsilon=1e-9):
-    return -tf.reduce_sum(target * tf.log(output + epsilon) + (1 - target) * tf.log(1 - output + epsilon))
+def get_reconst_loss(output, target, epsilon=1e-8):
+    return -tf.reduce_sum(target * tf.log(output + epsilon) + (1.0 - target) * tf.log(1.0 - output + epsilon))
 
 
 if __name__ == '__main__':
