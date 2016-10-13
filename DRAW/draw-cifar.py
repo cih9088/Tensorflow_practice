@@ -261,7 +261,7 @@ if __name__ == '__main__':
     train = pt.apply_optimizer(optimizer, losses=[loss])
 
     init = tf.initialize_all_variables()
-    saver = tf.train.Saver()
+    saver = tf.train.Saver(max_to_keep=0)
 
     # how many batches are in an epoch
     total_batch = int(np.floor(trainx.shape[0]/(FLAGS.batch_size)))
@@ -283,18 +283,16 @@ if __name__ == '__main__':
                     imgs = np.concatenate((imgs, sampled), axis=0)
 
                 img_tile = common.img_tile(imgs[:100], border_color=1.0, stretch=True)
-                common.plot_img(img_tile, 'generated MNIST')
+                common.plot_img(img_tile, 'generated CIFAR')
                 common.plt.savefig(os.path.join(img_dir, 'draw.png'))
 
         else:
             for epoch in range(FLAGS.max_epoch):
                 training_loss = 0
+                iter_ = manage.data_iterate(trainx, FLAGS.batch_size)
 
                 for i in tqdm.tqdm(range(total_batch)):
-                    iter_ = manage.data_iterate(trainx, FLAGS.batch_size)
-
                     next_batch = iter_.next()
-                    next_batch = np.reshape(next_batch, [-1, B, A, C])
 
                     _, loss_value = sess.run([train, loss], feed_dict={input_image: next_batch})
                     training_loss += loss_value
