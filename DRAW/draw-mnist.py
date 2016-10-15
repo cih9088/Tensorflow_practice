@@ -53,10 +53,10 @@ def filterbank_matrices(g_x, g_y, sigma_sq, delta, N, A, B, epsilon=1e-8):
     b = tf.cast(tf.range(B), tf.float32)
 
     # reshape for broadcasting
-    mu_x = tf.reshape(mu_x, [-1, N, 1])
-    mu_y = tf.reshape(mu_y, [-1, N, 1])
-    a = tf.reshape(a, [1, 1, -1])
-    b = tf.reshape(b, [1, 1, -1])
+    mu_x     = tf.reshape(mu_x, [-1, N, 1])
+    mu_y     = tf.reshape(mu_y, [-1, N, 1])
+    a        = tf.reshape(a, [1, 1, -1])
+    b        = tf.reshape(b, [1, 1, -1])
     sigma_sq = tf.reshape(sigma_sq, [-1, 1, 1])
 
     # Eq 25
@@ -81,34 +81,34 @@ def apply_filters(image, F_x, F_y, gamma, N, A, B, read=True):
         gamma: [batch, 1]
     '''
     if read == True:
-        F_y = tf.reshape(F_y, [-1, N, B, 1, 1])
-        F_y = tf.tile(F_y, [1, 1, 1, A, C])
+        F_y   = tf.reshape(F_y, [-1, N, B, 1, 1])
+        F_y   = tf.tile(F_y, [1, 1, 1, A, C])
         image = tf.reshape(image, [-1, 1, B, A, C])
         image = tf.tile(image, [1, N, 1, 1, 1])
         image = tf.reduce_sum((F_y * image), 2)
 
         image = tf.reshape(image, [-1, N, A, C, 1])
         image = tf.tile(image, [1, 1, 1, 1, N])
-        F_x = tf.transpose(F_x, [0, 2, 1])
-        F_x = tf.reshape(F_x, [-1, 1, A, 1, N])
-        F_x = tf.tile(F_x, [1, N, 1, C, 1])
+        F_x   = tf.transpose(F_x, [0, 2, 1])
+        F_x   = tf.reshape(F_x, [-1, 1, A, 1, N])
+        F_x   = tf.tile(F_x, [1, N, 1, C, 1])
         image = tf.reduce_sum((image * F_x), 2)
 
         # image: [batch, N(height), N(width), C(channel)]
         image = tf.transpose(image, [0, 1, 3, 2])
         return image * tf.reshape(gamma, [-1, 1, 1, 1])
     else:
-        F_y = tf.transpose(F_y, [0, 2, 1])
-        F_y = tf.reshape(F_y, [-1, B, N, 1, 1])
-        F_y = tf.tile(F_y, [1, 1, 1, N, C])
+        F_y   = tf.transpose(F_y, [0, 2, 1])
+        F_y   = tf.reshape(F_y, [-1, B, N, 1, 1])
+        F_y   = tf.tile(F_y, [1, 1, 1, N, C])
         image = tf.reshape(image, [-1, 1, N, N, C])
         image = tf.tile(image, [1, B, 1, 1, 1])
         image = tf.reduce_sum((F_y * image), 2)
         
         image = tf.reshape(image, [-1, B, N, C, 1])
         image = tf.tile(image, [1, 1, 1, 1, A])
-        F_x = tf.reshape(F_x, [-1, 1, N, 1, A])
-        F_x = tf.tile(F_x, [1, B, 1, C, 1])
+        F_x   = tf.reshape(F_x, [-1, 1, N, 1, A])
+        F_x   = tf.tile(F_x, [1, B, 1, C, 1])
         image = tf.reduce_sum((image * F_x), 2)
 
         # image: [batch, B(height), A(width), C(channel)]
@@ -119,11 +119,11 @@ def transform_params(input_tensor, N, A, B):
     
     g_x, g_y, log_sigma_sq, log_delta, log_gamma = tf.split(1, 5, input_tensor)
 
-    g_x = (A + 1) / 2 * (g_x + 1)
-    g_y = (B + 1) / 2 * (g_y + 1)
+    g_x      = (A + 1) / 2 * (g_x + 1)
+    g_y      = (B + 1) / 2 * (g_y + 1)
     sigma_sq = tf.exp(log_sigma_sq)
-    delta = (max(A, B) - 1) / (N - 1) * tf.exp(log_delta)
-    gamma = tf.exp(log_gamma)
+    delta    = (max(A, B) - 1) / (N - 1) * tf.exp(log_delta)
+    gamma    = tf.exp(log_gamma)
 
     return g_x, g_y, sigma_sq, delta, gamma
 
@@ -157,15 +157,15 @@ if __name__ == '__main__':
 
     # load mnist
     trainx, trainy = mnist_data.load(FLAGS.data_dir, subset='train')
-    testx, testy = mnist_data.load(FLAGS.data_dir, subset='test')
+    testx, testy   = mnist_data.load(FLAGS.data_dir, subset='test')
 
     # state of each rnn
     encoder_state = (pt.wrap(tf.zeros([FLAGS.batch_size, FLAGS.rnn_size], tf.float32)),)
     decoder_state = (pt.wrap(tf.zeros([FLAGS.batch_size, FLAGS.rnn_size], tf.float32)),)
     sampled_state = (pt.wrap(tf.zeros([FLAGS.batch_size, FLAGS.rnn_size], tf.float32)),)
 
-    input_image = tf.placeholder(tf.float32, [FLAGS.batch_size, B, A, C])
-    output_image = tf.zeros([FLAGS.batch_size, B, A, C], tf.float32)
+    input_image   = tf.placeholder(tf.float32, [FLAGS.batch_size, B, A, C])
+    output_image  = tf.zeros([FLAGS.batch_size, B, A, C], tf.float32)
     sampled_image = tf.zeros([FLAGS.batch_size, B, A, C], tf.float32)
 
     with tf.variable_scope('model'):
@@ -251,13 +251,11 @@ if __name__ == '__main__':
         sampled_image = tf.nn.sigmoid(sampled_image)
 
     reconst_loss = get_reconst_loss(output_image, input_image)
-    loss = vae_loss_sum + reconst_loss
-
-    optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate, beta1=0.5)
-    train = pt.apply_optimizer(optimizer, losses=[loss])
-
-    init = tf.initialize_all_variables()
-    saver = tf.train.Saver(max_to_keep=0)
+    loss         = vae_loss_sum + reconst_loss
+    optimizer    = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate, beta1=0.5)
+    train        = pt.apply_optimizer(optimizer, losses=[loss])
+    init         = tf.initialize_all_variables()
+    saver        = tf.train.Saver(max_to_keep=0)
 
     # how many batches are in an epoch
     total_batch = int(np.floor(trainx.shape[0]/(FLAGS.batch_size)))

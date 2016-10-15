@@ -82,34 +82,34 @@ def apply_filters(image, F_x, F_y, gamma, N, A, B, read=True):
         gamma: [batch, 1]
     '''
     if read == True:
-        F_y = tf.reshape(F_y, [-1, N, B, 1, 1])
-        F_y = tf.tile(F_y, [1, 1, 1, A, C])
+        F_y   = tf.reshape(F_y, [-1, N, B, 1, 1])
+        F_y   = tf.tile(F_y, [1, 1, 1, A, C])
         image = tf.reshape(image, [-1, 1, B, A, C])
         image = tf.tile(image, [1, N, 1, 1, 1])
         image = tf.reduce_sum((F_y * image), 2)
 
         image = tf.reshape(image, [-1, N, A, C, 1])
         image = tf.tile(image, [1, 1, 1, 1, N])
-        F_x = tf.transpose(F_x, [0, 2, 1])
-        F_x = tf.reshape(F_x, [-1, 1, A, 1, N])
-        F_x = tf.tile(F_x, [1, N, 1, C, 1])
+        F_x   = tf.transpose(F_x, [0, 2, 1])
+        F_x   = tf.reshape(F_x, [-1, 1, A, 1, N])
+        F_x   = tf.tile(F_x, [1, N, 1, C, 1])
         image = tf.reduce_sum((image * F_x), 2)
 
         # image: [batch, N(height), N(width), C(channel)]
         image = tf.transpose(image, [0, 1, 3, 2])
         return image * tf.reshape(gamma, [-1, 1, 1, 1])
     else:
-        F_y = tf.transpose(F_y, [0, 2, 1])
-        F_y = tf.reshape(F_y, [-1, B, N, 1, 1])
-        F_y = tf.tile(F_y, [1, 1, 1, N, C])
+        F_y   = tf.transpose(F_y, [0, 2, 1])
+        F_y   = tf.reshape(F_y, [-1, B, N, 1, 1])
+        F_y   = tf.tile(F_y, [1, 1, 1, N, C])
         image = tf.reshape(image, [-1, 1, N, N, C])
         image = tf.tile(image, [1, B, 1, 1, 1])
         image = tf.reduce_sum((F_y * image), 2)
         
         image = tf.reshape(image, [-1, B, N, C, 1])
         image = tf.tile(image, [1, 1, 1, 1, A])
-        F_x = tf.reshape(F_x, [-1, 1, N, 1, A])
-        F_x = tf.tile(F_x, [1, B, 1, C, 1])
+        F_x   = tf.reshape(F_x, [-1, 1, N, 1, A])
+        F_x   = tf.tile(F_x, [1, B, 1, C, 1])
         image = tf.reduce_sum((image * F_x), 2)
 
         # image: [batch, B(height), A(width), C(channel)]
@@ -120,11 +120,11 @@ def transform_params(input_tensor, N, A, B):
     
     g_x, g_y, log_sigma_sq, log_delta, log_gamma = tf.split(1, 5, input_tensor)
 
-    g_x = (A + 1) / 2 * (g_x + 1)
-    g_y = (B + 1) / 2 * (g_y + 1)
+    g_x      = (A + 1) / 2 * (g_x + 1)
+    g_y      = (B + 1) / 2 * (g_y + 1)
     sigma_sq = tf.exp(log_sigma_sq)
-    delta = (max(A, B) - 1) / (N - 1) * tf.exp(log_delta)
-    gamma = tf.exp(log_gamma)
+    delta    = (max(A, B) - 1) / (N - 1) * tf.exp(log_delta)
+    gamma    = tf.exp(log_gamma)
 
     return g_x, g_y, sigma_sq, delta, gamma
 
@@ -157,7 +157,7 @@ if __name__ == '__main__':
 
     # load cifar
     trainx, trainy = cifar10_data.load(FLAGS.data_dir, subset='train')
-    testx, testy = cifar10_data.load(FLAGS.data_dir, subset='test')
+    testx, testy   = cifar10_data.load(FLAGS.data_dir, subset='test')
 
     # noramlize data
     trainx = trainx / 255.0
@@ -168,8 +168,8 @@ if __name__ == '__main__':
     decoder_state = (pt.wrap(tf.zeros([FLAGS.batch_size, FLAGS.rnn_size], tf.float32)),)
     sampled_state = (pt.wrap(tf.zeros([FLAGS.batch_size, FLAGS.rnn_size], tf.float32)),)
 
-    input_image = tf.placeholder(tf.float32, [FLAGS.batch_size, B, A, C])
-    output_image = tf.zeros([FLAGS.batch_size, B, A, C], tf.float32)
+    input_image   = tf.placeholder(tf.float32, [FLAGS.batch_size, B, A, C])
+    output_image  = tf.zeros([FLAGS.batch_size, B, A, C], tf.float32)
     sampled_image = tf.zeros([FLAGS.batch_size, B, A, C], tf.float32)
 
     with tf.variable_scope('model'):
@@ -251,17 +251,15 @@ if __name__ == '__main__':
 
             sampled_image = sampled_image + write_glimpse
 
-        output_image = tf.nn.sigmoid(output_image)
+        output_image  = tf.nn.sigmoid(output_image)
         sampled_image = tf.nn.sigmoid(sampled_image)
 
     reconst_loss = get_reconst_loss(output_image, input_image)
-    loss = vae_loss_sum + reconst_loss
-
-    optimizer = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate, beta1=0.5)
-    train = pt.apply_optimizer(optimizer, losses=[loss])
-
-    init = tf.initialize_all_variables()
-    saver = tf.train.Saver(max_to_keep=0)
+    loss         = vae_loss_sum + reconst_loss
+    optimizer    = tf.train.AdamOptimizer(learning_rate=FLAGS.learning_rate, beta1=0.5)
+    train        = pt.apply_optimizer(optimizer, losses=[loss])
+    init         = tf.initialize_all_variables()
+    saver        = tf.train.Saver(max_to_keep=0)
 
     # how many batches are in an epoch
     total_batch = int(np.floor(trainx.shape[0]/(FLAGS.batch_size)))
@@ -305,14 +303,13 @@ if __name__ == '__main__':
                 if epoch % 10 == 0:
                     sample_, output_ = \
                             sess.run([sampled_image, output_image], feed_dict={input_image: next_batch})
-                    common.plot_generative_output(np.squeeze(sample_), \
-                                                    np.squeeze(next_batch), np.squeeze(output_))
+                    common.plot_generative_output(sample_, next_batch, output_)
 
                     n = os.path.join(img_dir, str(epoch).zfill(4) + '.png')
                     common.plt.savefig(n, dpi=100)
                     common.plt.clf()
 
-#                if (epoch+1) % 100 == 0:
+                if epoch % 20 == 0:
                     save_path = saver.save(sess, model_dir + '/' + str(epoch).zfill(0) + '.ckpt')
 
 f.close()
