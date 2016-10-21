@@ -276,9 +276,9 @@ if __name__ == '__main__':
                 else:
                     imgs = np.concatenate((imgs, sampled), axis=0)
 
-                img_tile = common.img_tile(imgs[:100], border_color=1.0, stretch=True)
-                common.plot_img(img_tile, 'generated MNIST')
-                common.plt.savefig(os.path.join(img_dir, 'draw.png'))
+            img_tile = common.img_tile(imgs[:100], border_color=1.0, stretch=True)
+            common.plot_img(img_tile, 'generated MNIST')
+            common.plt.savefig(os.path.join(img_dir, 'draw.png'))
 
         else:
             for epoch in range(FLAGS.max_epoch):
