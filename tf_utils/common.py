@@ -15,6 +15,13 @@ def create_directory(path):
     if not os.path.exists(path):
         os.makedirs(path)
 
+def binarize(images):
+    """
+    Stochastically binarize values in [0, 1] by treating them as p-values of
+    a Bernoulli distribution.
+    """
+    return (np.random.uniform(size=images.shape) < images).astype('float32')
+
 # Plot image examples.
 def plot_img(img, title):
     plt.figure()
