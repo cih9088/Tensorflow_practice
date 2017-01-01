@@ -9,3 +9,6 @@ Variaional Autoencoder
 
 ## DRAW
 Deep Recurrent Attentive Writer
+
+## GAN
+Generative Adversarial Network
