@@ -7,6 +7,7 @@ Generative Adversarial Network (TensorFlow)
 3. [OpenCV](http://opencv.org)
 
 ## How to train
-```python
-python multiGPU-GAN.py --batch_size 50 --n_gpu 2 --data mnist
+```
+python multiGPU-GAN.py --batch_size 100 --n_gpu 1 --data mnist
+python multiGPU-GAN.py --batch_size 50 --n_gpu 2 --data cifar10
 ```
