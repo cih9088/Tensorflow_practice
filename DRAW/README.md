@@ -1,10 +1,15 @@
-# This is Deep Recurrent Attentive Writer  practice
+# [DRAW](https://arxiv.org/abs/1502.04623)
+Deep Recurrent Attentive Writer (TensorFlow)
 
-`prettytensor` is needed.
+## Prerequisite
+1. [PrettyTensor](https://github.com/google/prettytensor)
 
+## How to train
+```
+python draw-mnist.py --test False
+```
 
-Training example
-```python draw-mnist.py --test False```
-
-Test example
-```python draw-mnist.py```
+## How to test
+```
+python draw-mnist.py
+```

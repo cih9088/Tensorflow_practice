@@ -1,9 +1,11 @@
-# This is Variational Autoencdoer practice
-All of the codes are implemented using multiple GPU settings.
+# [VAE](https://arxiv.org/abs/1312.6114)
+Variational Autoencoders (TensorFlow)
 
-`prettytensor` is needed.
+## Prerequisite
+1. [PrettyTensor](https://github.com/google/prettytensor)
 
-
-example
-```python multiGPU-VAE-CIFAR.py --n_gpu 2 --data_dir /home/mlg/ihcho/data```
+## How to train
+```
+python multiGPU-VAE-CIFAR.py --n_gpu 2 --data_dir /home/mlg/ihcho/data
+```
 

@@ -1,7 +1,7 @@
 # [GAN](https://arxiv.org/pdf/1406.2661)
 Generative Adversarial Network (TensorFlow)
 
-## Prerequiste
+## Prerequisite
 1. [PrettyTensor](https://github.com/google/prettytensor)
 2. [Fuel](https://github.com/mila-udem/fuel)
 3. [OpenCV](http://opencv.org)
