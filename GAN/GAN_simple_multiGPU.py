@@ -22,7 +22,7 @@ from fuel.streams import DataStream
 flags = tf.flags
 flags.DEFINE_integer('batch_size', 50, 'size of batches to use(per GPU)')
 flags.DEFINE_integer('n_hidden', 10, 'a number of hidden layer')
-flags.DEFINE_string('log_dir', 'multiGPU-GAN/', 'saved image directory')
+flags.DEFINE_string('log_dir', 'results_simple/', 'saved image directory')
 flags.DEFINE_integer('max_epoch', 200, 'a number of epochs to run')
 flags.DEFINE_integer('n_gpu', 2, 'the number of gpus to use')
 flags.DEFINE_string('data_dir', '/home/mlg/ihcho/data', 'data directory')
@@ -105,14 +105,22 @@ def discriminator(input_tensor):
             conv2d(5, 64, stride=2).
             conv2d(5, 128, edges='VALID').
             dropout(0.9).
-            flatten().fully_connected(1, activation_fn=None))
+            flatten().fully_connected(1, activation_fn=None)).tensor
 
 def generator(input_tensor):
-    return (pt.wrap(input_tensor).
-            deconv2d(3, 128, edges='VALID').
-            deconv2d(5, 64, edges='VALID').
-            deconv2d(5, 32, stride=2).
-            deconv2d(5, 1, stride=2))
+    if FLAGS.data == 'mnist':
+        return (pt.wrap(input_tensor).
+                deconv2d(3, 128, edges='VALID').
+                deconv2d(5, 64, edges='VALID').
+                deconv2d(5, 32, stride=2).
+                deconv2d(5, 1, stride=2, batch_normalize=False, activation_fn=tf.sigmoid)).tensor
+    elif FLAGS.data == 'cifar10':
+        return (pt.wrap(input_tensor).
+                deconv2d(4, 128, edges='VALID').
+                deconv2d(5, 64, edges='VALID').
+                deconv2d(5, 32, stride=2).
+                deconv2d(5, 3, stride=2, batch_normalize=False, activation_fn=tf.sigmoid)).tensor
+
 
 def build_model(input_tensor, batch_size, n_hidden):
     z_p = tf.random_uniform((batch_size, 1, 1, n_hidden), -1.0, 1.0) # normal dist for GAN
@@ -134,10 +142,6 @@ def build_model(input_tensor, batch_size, n_hidden):
     return disc_positive_out, gen_out, disc_negative_out
 
 def get_loss(input_tensor, disc_positive_out, gen_out, disc_negative_out, epsilon=1e-6):
-#    D_loss = -tf.reduce_mean(tf.log(tf.clip_by_value(tf.sigmoid(disc_positive_out), epsilon, 1.0-epsilon))) \
-#            -tf.reduce_mean(1.0 - tf.log(tf.clip_by_value(tf.sigmoid(disc_negative_out), epsilon, 1.0-epsilon)))
-#    G_loss = -tf.reduce_mean(tf.log(tf.clip_by_value(tf.sigmoid(disc_negative_out), epsilon, 1.0-epsilon)))
-
 #    D_loss = tf.reduce_mean(tf.nn.relu(disc_positive_out) - disc_positive_out + tf.log(1.0 + tf.exp(-tf.abs(disc_positive_out)))) + tf.reduce_mean(tf.nn.relu(disc_negative_out) + tf.log(1.0 + tf.exp(-tf.abs(disc_negative_out))))
 #    G_loss = tf.reduce_mean(tf.nn.relu(disc_negative_out) - disc_negative_out + tf.log(1.0 + tf.exp(-tf.abs(disc_negative_out))))
     D_loss = tf.reduce_mean(tf.nn.softplus(-disc_positive_out))\
@@ -149,15 +153,15 @@ def get_loss(input_tensor, disc_positive_out, gen_out, disc_negative_out, epsilo
 
 if __name__ == '__main__':
 
-#    # Control the number of gpus being used
-#    gpus = np.arange(0, FLAGS.n_gpu)
-#    os.environ["CUDA_VISIBLE_DEVICES"]=','.join([str(i) for i in gpus])
+    # Control the number of gpus being used
+    gpus = np.arange(0, FLAGS.n_gpu)
+    os.environ["CUDA_VISIBLE_DEVICES"]=','.join([str(i) for i in gpus])
 
     img_dir, model_dir, summary_dir, f = prepare_for_train()
 
     train_set, test_set = load_data_with_fuel()
     state = train_set.open()
-    data = train_set.get_data(state, slice(0,1))
+    data = train_set.get_data(state, slice(0,100))
 
     # configuration of GAN
     batch_size         = FLAGS.batch_size
@@ -166,23 +170,33 @@ if __name__ == '__main__':
     channel            = data[0].shape[1]
     height             = data[0].shape[2]
     width              = data[0].shape[3]
-    gen_learning_rate  = 0.003
-    disc_learning_rate = 0.003
+    gen_learning_rate  = 0.001
+    disc_learning_rate = 0.001
+
+    # Show training data
+    data = np.transpose(data[0], (0, 2, 3, 1))
+    data = data[:,:,:,::-1]
+    tiled_img = common.img_tile(data, border_color=1.0, stretch=True)
+    cv2.imshow('training data', tiled_img)
+    cv2.waitKey(100)
 
     # Construct tensorflow graph
     graph = tf.Graph()
-    with graph.as_default():
+    with graph.as_default(), tf.device('/cpu:0'):
         # Create a variable to count number of train calls
         global_step = tf.get_variable('global_step', [], initializer=tf.constant_initializer(0), trainable=False)
 
         lr = tf.placeholder(tf.float32, shape=[])
-        opt = tf.train.AdamOptimizer(lr, epsilon=1.0)
+        opt = tf.train.AdamOptimizer(lr)
 
         # These are the lists for each tower
         tower_disc_grads = []
         tower_gen_grads = []
         tower_data_acc = []
         tower_sample_acc = []
+        tower_acc = []
+        tower_gen = []
+        sum_list = []
 
         all_input = tf.placeholder(tf.float32, [batch_size*FLAGS.n_gpu, height, width, channel])
 
@@ -200,18 +214,19 @@ if __name__ == '__main__':
                     # Calculate the loss for this tower
                     D_loss, G_loss = \
                             get_loss(next_batch, disc_positive_out, gen_out, disc_negative_out)
-
                     # Additional accuracy information for GAN training
-#                    data_acc = tf.reduce_mean(
-#                            tf.cast(disc_positive_out >= 0.5, tf.float32), name='accuracy_data')
-#                    sample_acc = tf.reduce_mean(
-#                            tf.casst(disc_negative_out < 0.5, tf.float32), name='accuracy_sample')
-                    
+                    data_acc = tf.reduce_mean(
+                            tf.cast(tf.greater_equal(disc_positive_out, 0), tf.float32), name='accuracy_data')
+                    sample_acc = tf.reduce_mean(
+                            tf.cast(tf.less(disc_negative_out, 0), tf.float32), name='accuracy_sample')
+                    acc = (data_acc + sample_acc) / 2.0
+                   
                     # Logging tensorboard
-#                    tf.scalar_summary('Tower_%d/data_accuracy' %(i), data_acc)
-#                    tf.scalar_summary('Tower_%d/sample_accuracy' %(i), sample_acc)
-                    tf.scalar_summary('Tower_%d/Discriminator_loss' % (i), D_loss)
-                    tf.scalar_summary('Tower_%d/Generator_loss' % (i), G_loss)
+                    sum_list.append(tf.scalar_summary('Tower_%d/data_accuracy' %(i), data_acc))
+                    sum_list.append(tf.scalar_summary('Tower_%d/sample_accuracy' %(i), sample_acc))
+                    sum_list.append(tf.scalar_summary('Tower_%d/accuracy' %(i), acc))
+                    sum_list.append(tf.scalar_summary('Tower_%d/Discriminator_loss' % (i), D_loss))
+                    sum_list.append(tf.scalar_summary('Tower_%d/Generator_loss' % (i), G_loss))
 
                     # Specify loss to parameters
                     G_params = []
@@ -233,8 +248,24 @@ if __name__ == '__main__':
                     # Keep track of the gradients across all towers
                     tower_disc_grads.append(disc_grads)
                     tower_gen_grads.append(gen_grads)
-#                    tower_data_acc.append(data_acc)
-#                    tower_sample_acc.append(sample_acc)
+                    tower_data_acc.append(data_acc)
+                    tower_sample_acc.append(sample_acc)
+                    tower_gen.append(gen_out)
+                    tower_acc.append(acc)
+
+        # Merge tower information
+        acc = None
+        gen_out = None
+        for i in range(FLAGS.n_gpu):
+            if acc == None:
+                acc = tower_acc[i]
+            else:
+                acc += tower_acc[i]
+            if gen_out == None:
+                gen_out = tower_gen[i]
+            else:
+                gen_out = tf.concat(0, [gen_out, tower_gen[i]])
+        acc /= FLAGS.n_gpu
 
         # Average the gradients
         disc_grads = average_gradient(tower_disc_grads)
@@ -251,7 +282,7 @@ if __name__ == '__main__':
         sess = tf.InteractiveSession(graph=graph, config=config)
 
         # Merge all the summaries and write them out
-        merged = tf.merge_all_summaries()
+        merged = tf.summary.merge(sum_list)
         board_writer = tf.train.SummaryWriter(summary_dir, sess.graph)
 
         sess.run(init)
@@ -267,35 +298,68 @@ if __name__ == '__main__':
 
     total_batch = int(np.floor(n_train/(batch_size * FLAGS.n_gpu)))
 
+    prev_accuracy = 0.0
+    accuracy = 0.0
+    gen_iter = 1
     # Start training
+    print('Training start.......')
     for epoch in range(FLAGS.max_epoch):
-        print('Training start.......')
 
         with tqdm(total=total_batch) as pbar:
-            pbar.set_description('Epoch %d ' % epoch)
+#            pbar.set_description('Epoch %d ' % epoch)
             d_total_loss = g_total_loss = 0
 
             for batch in datastream.get_epoch_iterator():
                 pbar.update()
+                pbar.set_description('Epoch %d %d' %(epoch, gen_iter))
                 batch = np.transpose(batch[0], [0, 2, 3, 1])
 
-                # Train the model and calculate loss for each model
-                _, d_loss = sess.run([disc_train, D_loss], {lr: disc_learning_rate, all_input: batch})
-                _, g_loss = sess.run([gen_train, G_loss], {lr: gen_learning_rate, all_input: batch})
+                if prev_accuracy >= 0.85:
+                    gen_iter += 1
+                elif prev_accuracy < 0.85:
+                    gen_iter = 1
 
-                # Write Tensorboard log
-                summary = sess.run(merged, feed_dict={all_input: batch})
+                # Train Discriminator
+                if prev_accuracy < 0.99:
+                    _, d_loss, accuracy = sess.run([disc_train, D_loss, acc], \
+                            {lr: disc_learning_rate, all_input: batch})
+                else:
+                    d_loss, accuracy = sess.run([D_loss, acc],\
+                            {lr: disc_learning_rate, all_input: batch})
+
+                # Write Tensorboard
+                summary = sess.run(merged, {all_input: batch})
                 board_writer.add_summary(summary, epoch)
+
+                # Train Generator
+                if accuracy > 0.7:
+                    for i in range(gen_iter):
+                        _, g_loss = sess.run([gen_train, G_loss], {lr: gen_learning_rate, all_input: batch})
+                else:
+                    g_loss = sess.run(G_loss, {all_input: batch})
+
+                prev_accuracy = accuracy
+
+#                # Train the model and calculate loss for each model
+#                _, d_loss = sess.run([disc_train, D_loss], {lr: disc_learning_rate, all_input: batch})
+#                _, g_loss = sess.run([gen_train, G_loss], {lr: gen_learning_rate, all_input: batch})
 
                 d_total_loss += d_loss
                 g_total_loss += g_loss
 
-#                # Monitor the generated samples
-#                img1, img2 = sess.run([gen_out, gen_out])
-#                generated_imgs = np.vstack((img1, img2))
-#                tiled_img = common.img_tile(generated_imgs, border_color=1.0, stretch=True)
-#                cv2.imshow('generated', tiled_img)
-#                cv2.waitKey(1)
+                # Monitor the generated samples
+                gen_imgs = sess.run(gen_out)
+                gen_tiled_imgs = common.img_tile(gen_imgs, border_color=1.0, stretch=True)
+                cv2.imshow('generated data', gen_tiled_imgs)
+                cv2.waitKey(1)
+                pbar.set_description('Epoch {}, ({:.3f}, {}), {}, {}'.format(epoch, accuracy, gen_iter, gen_ctr, disc_ctr))
+                pbar.update()
+
+
+            # Monitor the data
+            batch = batch[:,:,:,::-1]
+            tiled_img = common.img_tile(batch, border_color=1.0, stretch=True)
+            cv2.imshow('training data', tiled_img)
 
             d_total_loss /= total_batch
             g_total_loss /= total_batch
@@ -306,13 +370,14 @@ if __name__ == '__main__':
         f.flush()
 
         # Save generated samples per each epoch
-        img1, img2 = sess.run([gen_out, gen_out])
-        generated_imgs = np.vstack((img1, img2))
-        tiled_img = common.img_tile(generated_imgs, border_color=1.0, stretch=True)
-        cv2.imwrite(''.join([img_dir, '/generated_', str(epoch).zfill(4), '.jpg']), tiled_img * 255.)
+        cv2.imwrite(''.join([img_dir, '/generated_', str(epoch).zfill(4), '.jpg']), gen_tiled_imgs * 255.)
 
+        if epoch % 100 == 0 and epoch != 0:
+            saver.save(sess, ''.join([model_dir, '/GAN_' + str(epoch).zfill(4), '.tfmod']))
+
+    cv2.destroyAllWindows()
     # Save network
-    saver.save(sess, ''.join([model_dir, '/multigpu_GAN_' + str(epoch).zfill(4), '.tfmod']))
+    saver.save(sess, ''.join([model_dir, '/GAN_' + str(epoch).zfill(4), '.tfmod']))
     f.close()
 
 

@@ -1,4 +1,4 @@
-# [GAN](https://arxiv.org/pdf/1406.2661v1.pdf)
+# [GAN](https://arxiv.org/pdf/1406.2661)
 Generative Adversarial Network (TensorFlow)
 
 ## Prerequiste
@@ -8,6 +8,6 @@ Generative Adversarial Network (TensorFlow)
 
 ## How to train
 ```
-python multiGPU-GAN.py --batch_size 100 --n_gpu 1 --data mnist
-python multiGPU-GAN.py --batch_size 50 --n_gpu 2 --data cifar10
+python GAN_simple_multiGPU.py --batch_size 100 --n_gpu 1 --data mnist
+python GAN_simple_multiGPU.py --batch_size 50 --n_gpu 2 --data cifar10
 ```
