@@ -12,3 +12,6 @@ Deep Recurrent Attentive Writer
 
 ## GAN
 Generative Adversarial Network
+
+## InfoGAN
+Information Maximizing Generative Adversarial Network
