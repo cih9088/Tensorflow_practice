@@ -15,3 +15,6 @@ Generative Adversarial Network
 
 ## InfoGAN
 Information Maximizing Generative Adversarial Network
+
+## WGAN
+Wasserstein GAN
