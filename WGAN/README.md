@@ -2,8 +2,9 @@
 Wasserstein Generative Adversarial Network (TensorFlow)
 
 ## Prerequisite
-1. [Fuel](https://github.com/mila-udem/fuel)
-2. [OpenCV](http://opencv.org)
+1. Tensorflow >= 1.0
+2. [Fuel](https://github.com/mila-udem/fuel)
+3. [OpenCV](http://opencv.org)
 
 ## How to train
 ```
