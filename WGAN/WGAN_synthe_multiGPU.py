@@ -1,7 +1,7 @@
 import os
 import numpy as np
-import prettytensor as pt
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 import matplotlib
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -77,7 +77,7 @@ def average_gradient(tower_grads):
             grads.append(expanded_g)
 
         # Average over the 'tower' dimension.
-        grad = tf.concat(0, grads)
+        grad = tf.concat(grads, 0)
         grad = tf.reduce_mean(grad, 0)
 
         # Keep in mind that the Variables are redundant because they are shared
@@ -91,24 +91,26 @@ def average_gradient(tower_grads):
 
 
 def discriminator(input_tensor, n_hidden):
-    return (pt.wrap(input_tensor).
-            fully_connected(n_hidden).
-            fully_connected(n_hidden).
-            fully_connected(1, activation_fn=None)).tensor
+    net = slim.fully_connected(input_tensor, n_hidden, scop='fc1')
+    net = slim.fully_connected(net, n_hidden, scope='fc2')
+    net = slim.fully_connected(net, 1, activation_fn=None, scope='fc3')
+    return net
 
 
 def generator(input_tensor, n_hidden):
-    return (pt.wrap(input_tensor).
-            fully_connected(n_hidden).
-            fully_connected(n_hidden).
-            fully_connected(2, activation_fn=None)).tensor
+    net = slim.fully_connected(input_tensor, n_hidden, scope='fc1')
+    net = slim.fully_connected(net, n_hiddeen, scope='fc2')
+    net = slim.fully_connected(net, 2, activation_fn=None, scope='fc3')
+    return net
 
 
 def build_model(input_tensor, batch_size, n_latent, n_hidden, in_place):
     # z_p = tf.random_uniform((batch_size, n_latent), -1.0, 1.0)
     z_p = tf.random_normal([batch_size, n_latent])
 
-    with pt.defaults_scope(activation_fn=tf.nn.relu):
+    with slim.arg_scope([slim.fully_connected],
+                        padding='SAME',
+                        activation_fn=tf.nn.relu):
         with tf.variable_scope("discriminator"):
             disc_positive_out = discriminator(input_tensor, n_hidden)
 
