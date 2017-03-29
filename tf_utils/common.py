@@ -1,7 +1,102 @@
 import os
+import sys
 import shutil
 import numpy as np
+import tensorflow as tf
 from matplotlib import pyplot as plt
+
+
+class Logger(object):
+    def __init__(self, f):
+        self.terminal = sys.stdout
+        self.log = f
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+
+    def flush(self):
+        # this flush method is nedded for python 3 compatibility.
+        # this handles the flush command by doing nothing
+        # you might wnat to specify some extra behavior here.
+        pass
+
+
+def average_gradient(tower_grads):
+    """ Calculate the average gradient for each shared variable across all towers.
+    Note that this function provides a synchronization point across all towers.
+    Args:
+        tower_grads: List of lists of (gradient, variable) tuples. The outer list
+                    is over individual gradients. The inner is over the gradient
+                    calculation for each tower.
+    Returns:
+        List of pairs of (graident, variable) where the gradient has been averaged
+        across all towers.
+    """
+
+    average_grads = []
+    for grad_and_vars in zip(*tower_grads):
+        # Note that each grad_and_vars looks like the following:
+        # ((grad0_gpu0, var0_gpu0), ..., (grad0_gpuN, var0_gpuN))
+        grads = []
+        for g, _ in grad_and_vars:
+            # Add 0 dimension to the gradients to represent the tower.
+            expanded_g = tf.expand_dims(g, 0)
+
+            # Append on a 'tower' dimension which we will average over below.
+            grads.append(expanded_g)
+
+        # Average over the 'tower' dimension.
+        grad = tf.concat(grads, 0)
+        grad = tf.reduce_mean(grad, 0)
+
+        # Keep in mind that the Variables are redundant because they are shared
+        # accross towers. So.. we will just return the first tower's point to
+        # the Variables
+        v = grad_and_vars[0][1]
+        grad_and_vars = (grad, v)
+        average_grads.append(grad_and_vars)
+
+    return average_grads
+
+
+def leaky_relu(x, leak=0.1, name='leaky_relu'):
+    return tf.maximum(x, leak * x)
+
+
+def show_roc(y_true, y_score, f=1):
+    from sklearn.metrics import roc_curve, auc
+    from scipy.optimize import brentq
+    from scipy.interpolate import interp1d
+
+    fpr, tpr, threshold = roc_curve(y_true, y_score)
+    roc_auc = auc(fpr, tpr)
+    eer = brentq(lambda x: 1. - x - interp1d(fpr, tpr)(x), 0., 1.)
+    # eer2 = fpr[np.argmin(abs(1-(fpr+tpr)))]
+    thresh = interp1d(fpr, threshold)(eer)
+
+    plt.figure(f)
+    plt.clf()
+    plt.plot(fpr, tpr, color='darkorange', lw=2, label='(AUC = {:.4f}, EER = {:.4f})'.format(roc_auc, eer))
+    # plt.plot(fpr, tpr, color='darkorange', lw=2, label='(AUC = {:.4f})'.format(roc_auc))
+    plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
+    plt.xlim([0.0, 1.0])
+    plt.ylim([0.0, 1.05])
+    plt.xlabel('False Positive Rate')
+    plt.ylabel('True Positive Rate')
+    plt.title('Receiver operating characteristic')
+    plt.legend(loc='lower right')
+    plt.pause(0.05)
+
+
+def show_hist(known, unknown, generated, f=1):
+    plt.figure(f)
+    plt.clf()
+    plt.hist(known, normed=1, bins=50, alpha=0.5, label='known')
+    plt.hist(unknown, normed=1, bins=50, alpha=0.5, label='unknown')
+    plt.hist(generated, normed=1, bins=50, alpha=0.5, label='generated')
+    plt.legend()
+    plt.pause(0.05)
 
 
 def delete_and_create_directory(path):
