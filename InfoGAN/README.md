@@ -2,11 +2,16 @@
 Information Maximizing Generative Adversarial Networks
 
 ## Prerequisite
-1. [PrettyTensor](https://github.com/google/prettytensor)
-2. [Fuel](https://github.com/mila-udem/fuel)
-3. [OpenCV](http://opencv.org)
+1. [Tensorflow >= r1.0](https://www.tensorflow.org)
+2. [OpenCV](http://opencv.org)
 
-## How to train
+## Usage
+To train a model
 ```
-python InfoGAN_simple_multiGPU.py --batch_size 50 --n_gpu 2 --data mnist
+python main.py --data mnist --log_dir results_mnist --is_train
+```
+
+To test a existing model
+```
+python main.py --data mnist --log_dir results_mnist
 ```
