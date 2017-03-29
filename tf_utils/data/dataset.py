@@ -1,8 +1,17 @@
 import numpy as np
 
 
+def scale_to_unit_interval(ndar, eps=1e-8):
+    """ Scales all values in the ndarray ndar to be between 0 and 1 """
+    ndar = ndar.copy()
+    ndar -= ndar.min()
+    scale = 1.0 / (ndar.max() + eps)
+    ndar = ndar * scale
+    return ndar
+
+
 class Dataset(object):
-    def __init__(self, data, data_dir):
+    def __init__(self, data, data_dir, normalise=True):
         self.data = data
         self.data_dir = data_dir
 
@@ -20,6 +29,9 @@ class Dataset(object):
         self.data_shape  = None
 
         self._load_data()
+
+        if normalise:
+            self._normalise()
 
     def _load_data(self):
         if self.data == 'mnist':
@@ -48,6 +60,14 @@ class Dataset(object):
         self.n_label = len(self.label_class)
 
         self.data_shape = self.train_data.shape[1:]
+
+    def _normalise(self):
+        if self.n_train != 0:
+            self.train_data = scale_to_unit_interval(self.train_data)
+        if self.n_test != 0:
+            self.test_data = scale_to_unit_interval(self.test_data)
+        if self.n_valid != 0:
+            self.valid_data = scale_to_unit_interval(self.valid_data)
 
     def _iter(self, batch_size, which='train'):
         """ A simple data iterator """
@@ -115,13 +135,19 @@ class Dataset(object):
         if shuffle:
             np.random.shuffle(ys_list)
 
-        known_data, known_label, unknown_data, unknown_label = \
+        known_data, known_label, _, _ = \
             self._divide_data(ys_list, n, 'train')
 
-        test_data, test_label = \
+        test_data, test_label, unknown_data, unknown_label = \
             self._divide_data(ys_list, n, 'test')
+
+        self.train_data  = known_data
+        self.train_label = known_label
+        self.test_data   = test_data
+        self.test_label  = test_label
+        self.valid_data  = unknown_data
+        self.valid_label = unknown_label
 
 
 if __name__ == '__main__':
-    mnist = Dataset('mnist', '/home/mlg/ihcho/data')
-    print mnist.n_train, mnist.n_test, mnist.n_valid, mnist.label_class
+    mnist = Dataset('mnist', '/home/mlg/ihcho/data', True)
