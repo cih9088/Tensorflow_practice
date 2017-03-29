@@ -2,11 +2,18 @@
 Wasserstein Generative Adversarial Network (TensorFlow)
 
 ## Prerequisite
-1. Tensorflow >= 1.0
-2. [Fuel](https://github.com/mila-udem/fuel)
+1. [Tensorflow >= r1.0](https://www.tensorflow.org)
 3. [OpenCV](http://opencv.org)
 
-## How to train
+## Usage
+To train a model
 ```
-python WGAN_simple.py --train True --data mnist
+python main.py --data mnist --log_dir results_mnist --is_train
+python main.py --data cifar10 --log_dir results_cifar10 --is_train
+```
+
+To test a existing model
+```
+python main.py --data mnist --log_dir results_mnist
+python main.py --data cifar10 --log_dir results_cifar10
 ```
