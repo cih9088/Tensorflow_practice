@@ -147,7 +147,7 @@ def main():
     n_hidden           = FLAGS.n_hidden
     gen_learning_rate  = 5e-5
     disc_learning_rate = 5e-5
-    clip_critic        = 0.1
+    clip_critic        = 0.01
     n_critic           = 5
     xmax               = 4
 
