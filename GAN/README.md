@@ -3,7 +3,7 @@ Generative Adversarial Network (TensorFlow)
 
 ## Prerequisite
 1. [Tensorflow >= r1.0](https://www.tensorflow.org)
-3. [OpenCV](http://opencv.org)
+2. [OpenCV](http://opencv.org)
 
 ## Usage
 To train a model
