@@ -148,6 +148,10 @@ class Dataset(object):
         self.valid_data  = unknown_data
         self.valid_label = unknown_label
 
+        self.n_train = len(self.train_data)
+        self.n_test = len(self.test_data)
+        self.n_valid = len(self.valid_data)
+
 
 if __name__ == '__main__':
     mnist = Dataset('mnist', '/home/mlg/ihcho/data', True)
