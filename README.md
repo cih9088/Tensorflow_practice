@@ -18,3 +18,6 @@ Information Maximizing Generative Adversarial Network
 
 ## WGAN
 Wasserstein GAN
+
+## ALI
+Adversarial Learned Inference
