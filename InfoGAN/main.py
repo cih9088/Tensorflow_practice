@@ -13,14 +13,14 @@ flags.DEFINE_float('g_lr', 0.0001, 'Learning rate for generator')
 flags.DEFINE_float('d_lr', 0.0001, 'Learning rate for discriminator')
 flags.DEFINE_float('q_lr', 0.0001, 'Learning rate for recognitor')
 flags.DEFINE_float('beta1', 0.5, 'Momentum term of adamoptimizer')
-flags.DEFINE_integer('z_dim', 10, 'a number of z dimension layer')
+flags.DEFINE_integer('z_dim', 100, 'a number of z dimension layer')
 flags.DEFINE_string('z_dist', 'uniform', 'Distribution for z [uniform, normal]')
 flags.DEFINE_string('log_dir', 'results_simple/', 'saved image directory')
 flags.DEFINE_integer('max_epoch', 500, 'A number of epochs to train')
 flags.DEFINE_boolean('is_train', False, 'True for training, False for testing')
 flags.DEFINE_string('data_dir', '/home/mlg/ihcho/data', 'data directory')
 flags.DEFINE_string('data', 'mnist', 'fuel data')
-flags.DEFINE_boolean('monitor', True, 'True for monitoring training process')
+flags.DEFINE_boolean('monitor', False, 'True for monitoring training process')
 FLAGS = flags.FLAGS
 
 

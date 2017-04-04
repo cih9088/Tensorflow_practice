@@ -4,15 +4,17 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.contrib.slim as slim
 import matplotlib.pyplot as plt
+import cv2
 
 import tf_utils.common as common
-from tf_utils.data.dataset import Dataset
+from tf_utils.data.dataset import DataSet
 
 from tqdm import tqdm
 
 
 class InfoGAN(object):
-    def __init__(self, sess, log_dir, data, data_dir,
+    def __init__(
+            self, sess, log_dir, data, data_dir,
             batch_size=128, z_dim=100, z_dist='uniform'):
         self.sess = sess
 
@@ -25,6 +27,8 @@ class InfoGAN(object):
         self.prepare_directory(self.img_dir)
         self.prepare_directory(self.summary_dir)
         self.prepare_directory(self.model_dir)
+
+        self.is_training = tf.placeholder(tf.bool, [], name='is_training')
 
         self.data = data
         self.load_data(data_dir)
@@ -40,7 +44,7 @@ class InfoGAN(object):
         self.build_model()
 
     def load_data(self, data_dir):
-        self.data_set = Dataset(self.data, data_dir, normalise=True)
+        self.data_set = DataSet(self.data, data_dir, normalise=True)
 
         self.height  = self.data_set.data_shape[0]
         self.width   = self.data_set.data_shape[1]
@@ -189,10 +193,12 @@ class InfoGAN(object):
             if reuse:
                 scope.reuse_variables()
 
+            batch_norm_params = {
+                'is_training': self.is_training, 'updates_collections': None}
             with slim.arg_scope([slim.conv2d],
                                 padding='SAME',
                                 normalizer_fn=slim.batch_norm,
-                                normalizer_params={'scale': True},
+                                normalizer_params=batch_norm_params,
                                 activation_fn=common.leaky_relu):
                 net = slim.conv2d(inputs, 32, [5, 5], 2, scope='conv1')
                 net = slim.conv2d(net, 64, [5, 5], 2, scope='conv2')
@@ -229,10 +235,12 @@ class InfoGAN(object):
     def generator(self, z_input, c_input):
         inputs = tf.concat([z_input, c_input], 3)
         with tf.variable_scope('generator') as scope:
+            batch_norm_params = {
+                'is_training': self.is_training, 'updates_collections': None}
             with slim.arg_scope([slim.conv2d_transpose],
                                 padding='SAME',
                                 normalizer_fn=slim.batch_norm,
-                                normalizer_params={'scale': True},
+                                normalizer_params=batch_norm_params,
                                 activation_fn=common.leaky_relu):
                 if self.data == 'mnist':
                     net = slim.conv2d_transpose(inputs, 128, [3, 3], 1, padding='VALID', scope='deconv1')
@@ -249,8 +257,6 @@ class InfoGAN(object):
                     return net
 
     def train(self, config):
-        if config.monitor:
-            import cv2
 
         d_opt = tf.train.AdamOptimizer(config.d_lr, beta1=config.beta1)
         g_opt = tf.train.AdamOptimizer(config.g_lr, beta1=config.beta1)
@@ -304,22 +310,27 @@ class InfoGAN(object):
 
         total_batch = int(np.floor(self.data_set.n_train / (self.batch_size * self.n_gpu)))
 
-        for epoch in xrange(config.max_epoch):
+        for epoch in xrange(config.max_epoch + 1):
             d_total_loss = g_total_loss = q_total_loss = 0
-            with tqdm(total=total_batch) as pbar:
-                for batch, label in self.data_set._iter(self.batch_size * self.n_gpu, 'train'):
+            with tqdm(total=total_batch, leave=False) as pbar:
+                for batch, label in self.data_set.iter(
+                        self.batch_size * self.n_gpu, which='train'):
                     if batch.shape[0] != self.batch_size * self.n_gpu:
                         break
 
-                    _, d_losses = self.sess.run([D_train, self.tower_D_loss],
-                            feed_dict={self.inputs: batch})
-                    _, q_losses = self.sess.run([Q_train, self.tower_Q_loss],
-                            feed_dict={self.inputs: batch})
-                    _, g_losses = self.sess.run([G_train, self.tower_G_loss],
-                            feed_dict={self.inputs: batch})
+                    _, d_losses = self.sess.run(
+                        [D_train, self.tower_D_loss],
+                        feed_dict={self.inputs: batch, self.is_training: True})
+                    _, q_losses = self.sess.run(
+                        [Q_train, self.tower_Q_loss],
+                        feed_dict={self.inputs: batch, self.is_training: True})
+                    _, g_losses = self.sess.run(
+                        [G_train, self.tower_G_loss],
+                        feed_dict={self.inputs: batch, self.is_training: True})
 
                     # Write Tensorboard log
-                    summary = self.sess.run(self.merged, feed_dict={self.inputs: batch})
+                    summary = self.sess.run(
+                        self.merged, feed_dict={self.inputs: batch, self.is_training: True})
                     self.board_writer.add_summary(summary, counter)
 
                     d_total_loss += np.array(d_losses).mean()
@@ -331,12 +342,15 @@ class InfoGAN(object):
 
                     # monitor generated data
                     if config.monitor:
-                        gen_imgs = self.sess.run(self.tower_G[0])
-                        gen_tiled_imgs = common.img_tile(gen_imgs[0:100], border_color=1.0, stretch=True)
+                        gen_imgs = self.sess.run(
+                            self.tower_G[0], feed_dict={self.is_training: False})
+                        gen_tiled_imgs = common.img_tile(
+                            gen_imgs[0:100], border_color=1.0, stretch=True)
                         cv2.imshow('generated data', gen_tiled_imgs)
                         cv2.waitKey(1)
 
-            categorical_imgs = self.sess.run(self.tower_G_categorical[0])
+            categorical_imgs = self.sess.run(
+                self.tower_G_categorical[0], feed_dict={self.is_training: False})
             categorical_tiled_imgs = []
             for i in range(10):
                 categorical_imgs[i] = categorical_imgs[i][:, :, :, ::-1]
@@ -349,7 +363,8 @@ class InfoGAN(object):
             cv2.imwrite(''.join([self.img_dir, '/categorical_', str(counter).zfill(4), '.jpg']), merged_tiled_imgs * 255.)
             if config.monitor:
                 # monitor training data
-                training_tiled_imgs = common.img_tile(batch[0:100], border_color=1.0, stretch=True)
+                training_tiled_imgs = common.img_tile(
+                    batch[0:100], border_color=1.0, stretch=True)
                 cv2.imshow('training data', training_tiled_imgs)
 
                 # Monitor categorically generated data
@@ -369,7 +384,12 @@ class InfoGAN(object):
 
             # Save images
             if counter % 10 == 0:
-                cv2.imwrite(''.join([self.img_dir, '/generated_', str(counter).zfill(4), '.jpg']), gen_tiled_imgs * 255.)
+                gen_imgs = self.sess.run(
+                    self.tower_G[0], feed_dict={self.is_training: False})
+                gen_tiled_imgs = common.img_tile(
+                    gen_imgs[0:100], border_color=1.0, stretch=True)
+                file_name = ''.join([self.img_dir, '/generated_', str(counter).zfill(4), '.jpg'])
+                cv2.imwrite(file_name, gen_tiled_imgs * 255.)
 
             counter += 1
 
@@ -377,7 +397,7 @@ class InfoGAN(object):
         self.f.close()
 
     def save_model(self, model_dir, step):
-        model_name = 'GAN.model'
+        model_name = 'InfoGAN.model'
 
         self.saver.save(self.sess, os.path.join(model_dir, model_name), global_step=step)
 
