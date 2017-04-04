@@ -10,7 +10,7 @@ def scale_to_unit_interval(ndar, eps=1e-8):
     return ndar
 
 
-class Dataset(object):
+class DataSet(object):
     def __init__(self, data, data_dir, normalise=True):
         self.data = data
         self.data_dir = data_dir
@@ -46,8 +46,18 @@ class Dataset(object):
             import cifar10_data
             self.train_data, self.train_label = cifar10_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar10_data.load(self.data_dir, 'test')
+        elif self.data == 'mog':
+            n_mixture = 8
+            std       = 0.01
+            radius    = 1.0
+            self.train_data, self.train_label = self.sample_mog(
+                50000, n_mixture, std, radius)
+            self.test_data, self.test_label = self.sample_mog(
+                10000, n_mixture, std, radius)
+            self.valid_data, self.valid_label = self.sample_mog(
+                10000, n_mixture, std, radius)
         else:
-            print('[!] dataset error: there is no data called {}'.format(self.data))
+            raise ValueError('data argument must be in range [mnist, cifar10, mog]')
 
         if self.train_data is not None:
             self.n_train = len(self.train_data)
@@ -69,9 +79,44 @@ class Dataset(object):
         if self.n_valid != 0:
             self.valid_data = scale_to_unit_interval(self.valid_data)
 
-    def _iter(self, batch_size, which='train'):
+    def sample_mog(self, size, n_mixture=8, std=0.01, radius=1.0):
+        thetas = np.linspace(0, 2 * np.pi, n_mixture + 1)
+        xs, ys = radius * np.sin(thetas[:-1]), radius * np.cos(thetas[:-1])
+        cat = np.random.choice(n_mixture, size)
+
+        data  = []
+        label = []
+        for i in range(size):
+            xi, yi = xs[cat[i]], ys[cat[i]]
+            compas = np.random.multivariate_normal([xi, yi], np.eye(2) * std)
+            data.append(np.reshape(compas, (1, 2)))
+            label.append(cat[i])
+
+        return np.concatenate(data), np.array(label)
+
+    def iter(self, batch_size, request_label=None, which='train'):
         """ A simple data iterator """
         data, label = self._data_selection(which)
+
+        if request_label is None:
+            request_label = self.label_class
+
+        # error check
+        ctr = 0
+        for i in request_label:
+            for j in self.label_class:
+                if i == j:
+                    ctr += 1
+                    break
+        if ctr != len(request_label):
+            raise ValueError('Incorrect requested label {}'.format(request_label))
+
+        idx = []
+        for i in request_label:
+            idx.append(np.where(label == i)[0])
+        idx = np.concatenate(idx)
+        data = data[idx]
+        label = label[idx]
 
         batch_idx = 0
         idxs = np.arange(0, len(data))
@@ -82,6 +127,59 @@ class Dataset(object):
             label_batch = label[cur_idxs]
             # print data_batch.shape, label_batch.shape
             yield data_batch, label_batch
+
+    def get_num_data(self, request_label=None, which='train'):
+        data, label = self._data_selection(which)
+
+        if request_label is None:
+            request_label = self.label_class
+
+        # error check
+        ctr = 0
+        for i in request_label:
+            for j in self.label_class:
+                if i == j:
+                    ctr += 1
+                    break
+        if ctr != len(request_label):
+            raise ValueError('Incorrect requested label {}'.format(request_label))
+
+        idx = []
+        for i in request_label:
+            idx.append(np.where(label == i)[0])
+        idx = np.concatenate(idx)
+        return len(idx)
+
+    def get_data(self, batch_size, request_label=None, which='train'):
+        """ A simple data iterator """
+        data, label = self._data_selection(which)
+
+        if request_label is None:
+            request_label = self.label_class
+
+        # error check
+        ctr = 0
+        for i in request_label:
+            for j in self.label_class:
+                if i == j:
+                    ctr += 1
+                    break
+        if ctr != len(request_label):
+            raise ValueError('Incorrect requested label {}'.format(request_label))
+
+        idx = []
+        for i in request_label:
+            idx.append(np.where(label == i)[0])
+        idx = np.concatenate(idx)
+        data = data[idx]
+        label = label[idx]
+
+        idx = np.arange(len(data))
+        np.random.shuffle(idx)
+        data = data[idx]
+        label = label[idx]
+
+        return data[0:batch_size], label[0:batch_size]
 
     def _divide_data(self, ys_list, n=5, which='train'):
         data, label = self._data_selection(which)
@@ -125,10 +223,6 @@ class Dataset(object):
             label = None
         return data, label
 
-    def next_batch(self, batch_size, which='train'):
-        iter = self._iter(batch_size, which)
-        return iter.next()
-
     def divide_data(self, shuffle=False, n=5):
         ys_list = self.label_class.copy()
 
@@ -154,4 +248,26 @@ class Dataset(object):
 
 
 if __name__ == '__main__':
-    mnist = Dataset('mnist', '/home/mlg/ihcho/data', True)
+    dataset = DataSet('mnist', '/home/mlg/ihcho/data', True)
+    # iter = dataset.iter(100, [0, 1, 2, 3, 4], which='train')
+    # data, label = iter.next()
+
+    # aa = []
+    # for k in range(10):
+        # aa.append(np.sum(label == k))
+    # print aa
+
+    # data, label = dataset.get_data(100, [0, 1, 2, 3, 4], which='test')
+    # aa = []
+    # for k in range(10):
+        # aa.append(np.sum(label == k))
+    # print aa
+    
+    # dataset = DataSet('mog', '/home/mlg/ihcho/data', False)
+    # data, label = dataset.get_data(1000, [3, 4, 7])
+    # import matplotlib.pyplot as plt
+    # fig, ax = plt.subplots(figsize=(10, 6))
+    # c = ['r', 'g', 'b', 'k', 'm', 'y', 'coral', 'cyan']
+    # for i in range(8):
+        # ax.scatter(data[label == i, 0], data[label == i, 1], color=c[i])
+    # plt.show()
