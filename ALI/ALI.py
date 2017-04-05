@@ -295,6 +295,7 @@ class ALI(object):
                             self.tower_reconst_x[0], feed_dict={self.is_training: False})
                         gen_tiled_imgs = common.img_tile(
                             gen_imgs[0:100], border_color=1.0, stretch=True)
+                        gen_tiled_imgs = gen_tiled_imgs[:, :, ::-1]
                         cv2.imshow('generated data', gen_tiled_imgs)
                         cv2.waitKey(1)
 
@@ -302,6 +303,7 @@ class ALI(object):
             if config.monitor:
                 training_tiled_imgs = common.img_tile(
                     batch[0:100], border_color=1.0, stretch=True)
+                training_tiled_imgs = training_tiled_imgs[:, :, ::-1]
                 cv2.imshow('training data', training_tiled_imgs)
                 cv2.waitKey(1)
 
@@ -323,6 +325,7 @@ class ALI(object):
                     self.tower_reconst_x[0], feed_dict={self.is_training: False})
                 gen_tiled_imgs = common.img_tile(
                     gen_imgs[0:100], border_color=1.0, stretch=True)
+                gen_tiled_imgs = gen_tiled_imgs[:, :, ::-1]
                 file_name = ''.join([self.img_dir, '/generated_', str(counter).zfill(4), '.jpg'])
                 cv2.imwrite(file_name, gen_tiled_imgs * 255.)
 
