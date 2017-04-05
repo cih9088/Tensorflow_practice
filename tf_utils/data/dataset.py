@@ -42,7 +42,7 @@ class DataSet(object):
             self.train_data = np.expand_dims(self.train_data, 3)
             self.test_data = np.expand_dims(self.test_data, 3)
             self.valid_data = np.expand_dims(self.valid_data, 3)
-        elif self.data == 'nmist':
+        elif self.data == 'nmnist':
             import nmnist_data
             self.train_data, self.train_label = nmnist_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = nmnist_data.load(self.data_dir, 'test')
@@ -61,7 +61,7 @@ class DataSet(object):
             self.valid_data, self.valid_label = self.sample_mog(
                 10000, n_mixture, std, radius)
         else:
-            raise ValueError('data argument must be in range [mnist, cifar10, mog]')
+            raise ValueError('data argument must be in range [mnist, nmnist, cifar10, mog]')
 
         if self.train_data is not None:
             self.n_train = len(self.train_data)
