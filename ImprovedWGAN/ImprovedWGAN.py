@@ -182,8 +182,8 @@ class ImprovedWGAN(object):
 
     def train(self, config):
 
-        d_opt = tf.train.RMSPropOptimizer(config.d_lr)
-        g_opt = tf.train.RMSPropOptimizer(config.g_lr)
+        d_opt = tf.train.AdamOptimizer(config.d_lr, config.beta1, config.beta2)
+        g_opt = tf.train.AdamOptimizer(config.g_lr, config.beta1, config.beta2)
 
         # Merge all the summaries and write them out
         self.merged = tf.summary.merge(self.sum_list)
