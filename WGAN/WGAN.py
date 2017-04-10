@@ -275,7 +275,8 @@ class WGAN(object):
             g_total_loss /= total_batch
 
             # Print display network output
-            print('Counter: {}\t Epoch: {}\t D_loss: {:.4f}\t G_loss: {:.4f}'.format(counter, epoch, d_total_loss, g_total_loss))
+            print('Counter: {}\t D_loss: {:.4f}\t G_loss: {:.4f}'.format(
+                counter, d_total_loss, g_total_loss))
             self.f.flush()
 
             # Save model

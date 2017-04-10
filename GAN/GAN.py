@@ -269,8 +269,8 @@ class GAN(object):
             g_total_loss /= total_batch
 
             # Print display network output
-            print('Counter: {}\tEpoch: {}\tD_loss: {:.4f}\tG_loss: {:.4f}'.format(
-                counter, epoch, d_total_loss, g_total_loss))
+            print('Counter: {}\tD_loss: {:.4f}\tG_loss: {:.4f}'.format(
+                counter, d_total_loss, g_total_loss))
             self.f.flush()
 
             # Save model
