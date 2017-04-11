@@ -19,7 +19,7 @@ flags.DEFINE_boolean('is_train', False, 'True for training, False for testing')
 flags.DEFINE_string('data_dir', '/home/mlg/ihcho/data', 'data directory')
 flags.DEFINE_string('data', 'mnist', 'fuel data')
 flags.DEFINE_boolean('monitor', False, 'True for monitoring training process')
-flags.DEFINE_integer('n_critic', 4, 'A number of updates for critic')
+flags.DEFINE_integer('n_critic', 5, 'A number of updates for critic')
 flags.DEFINE_float('clip_critic', 0.01, 'critic clip value')
 FLAGS = flags.FLAGS
 
