@@ -21,3 +21,6 @@ Wasserstein GAN
 
 ## ALI
 Adversarial Learned Inference
+
+## ImprovedWGAN
+Improved Wasserstein GAN
