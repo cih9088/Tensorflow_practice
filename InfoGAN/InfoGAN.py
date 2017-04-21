@@ -189,9 +189,7 @@ class InfoGAN(object):
         return D_loss, G_loss
 
     def shared_structure(self, inputs, reuse=False):
-        with tf.variable_scope('shared') as scope:
-            if reuse:
-                scope.reuse_variables()
+        with tf.variable_scope('shared', reuse=reuse) as scope:
 
             batch_norm_params = {
                 'is_training': self.is_training, 'updates_collections': None}
@@ -203,23 +201,18 @@ class InfoGAN(object):
                 net = slim.conv2d(inputs, 32, [5, 5], 2, scope='conv1')
                 net = slim.conv2d(net, 64, [5, 5], 2, scope='conv2')
                 net = slim.conv2d(net, 128, [5, 5], 1, padding='VALID', scope='conv3')
-                net = slim.dropout(net, 0.9, scope='dropout3')
+                net = slim.dropout(net, 0.9, is_training=self.is_training, scope='dropout3')
                 net = slim.flatten(net)
         return net
 
     def discriminator(self, inputs, reuse=False):
-        with tf.variable_scope('discriminator') as scope:
-            if reuse:
-                scope.reuse_variables()
-
+        with tf.variable_scope('discriminator', reuse=reuse) as scope:
             logits = slim.fully_connected(inputs, 1, activation_fn=None, scope='fc1')
 
         return logits
 
     def recognitor(self, inputs, reuse=False):
-        with tf.variable_scope('recognitor') as scope:
-            if reuse:
-                scope.reuse_variables()
+        with tf.variable_scope('recognitor', reuse=reuse) as scope:
 
             if self.data == 'mnist':
                 output = slim.fully_connected(inputs, 128, activation_fn=None, scope='fc1')
@@ -266,11 +259,12 @@ class InfoGAN(object):
         self.merged = tf.summary.merge(self.sum_list)
         self.board_writer = tf.summary.FileWriter(self.summary_dir, self.sess.graph)
 
-        G_params = [param for param in tf.trainable_variables() if 'generator' in param.name]
+        G_params = [param for param in tf.trainable_variables()
+                    if 'generator' in param.name]
         D_params = [param for param in tf.trainable_variables()
-                if 'discriminator' in param.name or 'shared' in param.name]
+                    if 'discriminator' in param.name or 'shared' in param.name]
         Q_params = [param for param in tf.trainable_variables()
-                if 'recognitor' in param.name or 'shared' in param.name]
+                    if 'recognitor' in param.name or 'shared' in param.name]
 
         tower_gen_grads  = []
         tower_disc_grads = []
@@ -320,17 +314,22 @@ class InfoGAN(object):
 
                     _, d_losses = self.sess.run(
                         [D_train, self.tower_D_loss],
-                        feed_dict={self.inputs: batch, self.is_training: True})
+                        feed_dict={self.inputs: batch,
+                                   self.is_training: True})
                     _, q_losses = self.sess.run(
                         [Q_train, self.tower_Q_loss],
-                        feed_dict={self.inputs: batch, self.is_training: True})
+                        feed_dict={self.inputs: batch,
+                                   self.is_training: True})
                     _, g_losses = self.sess.run(
                         [G_train, self.tower_G_loss],
-                        feed_dict={self.inputs: batch, self.is_training: True})
+                        feed_dict={self.inputs: batch,
+                                   self.is_training: True})
 
                     # Write Tensorboard log
                     summary = self.sess.run(
-                        self.merged, feed_dict={self.inputs: batch, self.is_training: True})
+                        self.merged,
+                        feed_dict={self.inputs: batch,
+                                   self.is_training: True})
                     self.board_writer.add_summary(summary, counter)
 
                     d_total_loss += np.array(d_losses).mean()
@@ -343,14 +342,17 @@ class InfoGAN(object):
                     # monitor generated data
                     if config.monitor:
                         gen_imgs = self.sess.run(
-                            self.tower_G[0], feed_dict={self.is_training: False})
+                            self.tower_G[0],
+                            feed_dict={self.is_training: False})
                         gen_tiled_imgs = common.img_tile(
                             gen_imgs[0:100], border_color=1.0, stretch=True)
+                        gen_tiled_imgs = gen_tiled_imgs[:, :, ::-1]
                         cv2.imshow('generated data', gen_tiled_imgs)
                         cv2.waitKey(1)
 
             categorical_imgs = self.sess.run(
-                self.tower_G_categorical[0], feed_dict={self.is_training: False})
+                self.tower_G_categorical[0],
+                feed_dict={self.is_training: False})
             categorical_tiled_imgs = []
             for i in range(10):
                 categorical_imgs[i] = categorical_imgs[i][:, :, :, ::-1]
@@ -365,6 +367,7 @@ class InfoGAN(object):
                 # monitor training data
                 training_tiled_imgs = common.img_tile(
                     batch[0:100], border_color=1.0, stretch=True)
+                training_tiled_imgs = training_tiled_imgs[:, :, ::-1]
                 cv2.imshow('training data', training_tiled_imgs)
 
                 # Monitor categorically generated data
@@ -383,12 +386,14 @@ class InfoGAN(object):
             if counter % 100 == 0:
                 self.save_model(self.model_dir, counter)
 
-            # Save images
+            # Save generated images
             if counter % 10 == 0:
                 gen_imgs = self.sess.run(
-                    self.tower_G[0], feed_dict={self.is_training: False})
+                    self.tower_G[0],
+                    feed_dict={self.is_training: False})
                 gen_tiled_imgs = common.img_tile(
                     gen_imgs[0:100], border_color=1.0, stretch=True)
+                gen_tiled_imgs = gen_tiled_imgs[:, :, ::-1]
                 file_name = ''.join([self.img_dir, '/generated_', str(counter).zfill(4), '.jpg'])
                 cv2.imwrite(file_name, gen_tiled_imgs * 255.)
 

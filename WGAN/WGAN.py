@@ -127,9 +127,7 @@ class WGAN(object):
         return D_loss, G_loss
 
     def discriminator(self, inputs, reuse=False):
-        with tf.variable_scope('discriminator') as scope:
-            if reuse:
-                scope.reuse_variables()
+        with tf.variable_scope('discriminator', reuse=reuse) as scope:
 
             batch_norm_params = {
                 'is_training': self.is_training, 'updates_collections': None}
@@ -141,7 +139,7 @@ class WGAN(object):
                 net = slim.conv2d(inputs, 32, [5, 5], 2, scope='conv1')
                 net = slim.conv2d(net, 64, [5, 5], 2, scope='conv2')
                 net = slim.conv2d(net, 128, [5, 5], 1, padding='VALID', scope='conv3')
-                net = slim.dropout(net, 0.9, scope='dropout3')
+                net = slim.dropout(net, 0.9, is_training=self.is_training, scope='dropout3')
                 net = slim.flatten(net)
                 logits = slim.fully_connected(net, 1, activation_fn=None, scope='fc1')
 
@@ -244,7 +242,9 @@ class WGAN(object):
 
                     # Write Tensorboard log
                     summary = self.sess.run(
-                        self.merged, feed_dict={self.inputs: batch[str_idx:end_idx], self.is_training: True})
+                        self.merged,
+                        feed_dict={self.inputs: batch[str_idx:end_idx],
+                                   self.is_training: True})
                     self.board_writer.add_summary(summary, counter)
 
                     d_total_loss += np.array(d_losses).mean()
@@ -283,10 +283,11 @@ class WGAN(object):
             if counter % 100 == 0:
                 self.save_model(self.model_dir, counter)
 
-            # Save images
+            # Save generated images
             if counter % 10 == 0:
                 gen_imgs = self.sess.run(
-                    self.tower_G[0], feed_dict={self.is_training: False})
+                    self.tower_G[0],
+                    feed_dict={self.is_training: False})
                 gen_tiled_imgs = common.img_tile(
                     gen_imgs[0:100], border_color=1.0, stretch=True)
                 gen_tiled_imgs = gen_tiled_imgs[:, :, ::-1]
