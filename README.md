@@ -24,3 +24,9 @@ Adversarial Learned Inference
 
 ## ImprovedWGAN
 Improved Wasserstein GAN
+
+## DCGAN
+Deep convolutional GAN
+
+## DCGAN__DFM
+DCGAN with Denoising Feature Matching
