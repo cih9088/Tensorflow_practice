@@ -152,6 +152,7 @@ class DCGAN_DFM(object):
         D_loss = tf.reduce_mean(tf.nn.softplus(-D_p_logits)) \
             + tf.reduce_mean(tf.nn.softplus(-D_n_logits) + D_n_logits)
 
+        denoiser_n = tf.stop_gradient(denoiser_n)
         G_loss = tf.reduce_mean(
             self.lambda_adv * tf.nn.softplus(-D_n_logits) +
             self.lambda_denoise * tf.reduce_sum(tf.square(D_n_feature - denoiser_n), axis=1))
