@@ -50,6 +50,10 @@ class DataSet(object):
             import cifar10_data
             self.train_data, self.train_label = cifar10_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar10_data.load(self.data_dir, 'test')
+        elif self.data == 'cifar100':
+            import cifar100_data
+            self.train_data, self.train_label = cifar100_data.load(self.data_dir, 'train')
+            self.test_data, self.test_label = cifar100_data.load(self.data_dir, 'test')
         elif self.data == 'svhn':
             import svhn_data
             self.train_data, self.train_label = svhn_data.load(self.data_dir, 'train')
