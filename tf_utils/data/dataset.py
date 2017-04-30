@@ -50,6 +50,10 @@ class DataSet(object):
             import cifar10_data
             self.train_data, self.train_label = cifar10_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar10_data.load(self.data_dir, 'test')
+        elif self.data == 'svhn':
+            import svhn_data
+            self.train_data, self.train_label = svhn_data.load(self.data_dir, 'train')
+            self.test_data, self.test_label = svhn_data.load(self.data_dir, 'test')
         elif self.data == 'mog':
             n_mixture = 8
             std       = 0.01
@@ -252,7 +256,7 @@ class DataSet(object):
 
 
 if __name__ == '__main__':
-    dataset = DataSet('mnist', '/home/mlg/ihcho/data', True)
+    dataset = DataSet('svhn', '/home/mlg/ihcho/data', True)
     # iter = dataset.iter(100, [0, 1, 2, 3, 4], which='train')
     # data, label = iter.next()
 
