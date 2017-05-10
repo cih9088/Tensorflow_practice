@@ -1,17 +1,27 @@
 import numpy as np
 
 
-def scale_to_unit_interval(ndar, eps=1e-8):
+def scale_to_sigmoid_interval(ndar, eps=1e-8):
     """ Scales all values in the ndarray ndar to be between 0 and 1 """
     ndar = ndar.copy()
+    ndar = ndar.astype(np.float32)
     ndar -= ndar.min()
+    scale = 1.0 / (ndar.max() + eps)
+    ndar = ndar * scale
+    return ndar
+
+def sacle_to_tanh_interval(ndar, eps=1e-8):
+    """ Scales all values in the ndarray ndar to be between -1 and 1 """
+    ndar = ndar.copy()
+    ndar = ndar.astype(np.float32)
+    ndar -= (ndar.min() + ndar.max()) / 2
     scale = 1.0 / (ndar.max() + eps)
     ndar = ndar * scale
     return ndar
 
 
 class DataSet(object):
-    def __init__(self, data, data_dir, normalise=True):
+    def __init__(self, data, data_dir, normalise='None'):
         self.data = data
         self.data_dir = data_dir
 
@@ -30,8 +40,14 @@ class DataSet(object):
 
         self._load_data()
 
-        if normalise:
+        if normalise == 'sigmoid':
             self._normalise()
+        elif normalise == 'tanh':
+            self._normalise_tanh()
+        elif normalise == 'None':
+            pass
+        else:
+            raise ValueError('Incorrect normalise param {}'.format(normalise))
 
     def _load_data(self):
         if self.data == 'mnist':
@@ -85,11 +101,19 @@ class DataSet(object):
 
     def _normalise(self):
         if self.n_train != 0:
-            self.train_data = scale_to_unit_interval(self.train_data)
+            self.train_data = scale_to_sigmoid_interval(self.train_data)
         if self.n_test != 0:
-            self.test_data = scale_to_unit_interval(self.test_data)
+            self.test_data = scale_to_sigmoid_interval(self.test_data)
         if self.n_valid != 0:
-            self.valid_data = scale_to_unit_interval(self.valid_data)
+            self.valid_data = scale_to_sigmoid_interval(self.valid_data)
+
+    def _normalise_tanh(self):
+        if self.n_train != 0:
+            self.train_data = sacle_to_tanh_interval(self.train_data)
+        if self.n_test != 0:
+            self.test_data = sacle_to_tanh_interval(self.test_data)
+        if self.n_valid != 0:
+            self.valid_data = sacle_to_tanh_interval(self.valid_data)
 
     def sample_mog(self, size, n_mixture=8, std=0.01, radius=1.0):
         thetas = np.linspace(0, 2 * np.pi, n_mixture + 1)
@@ -259,10 +283,11 @@ class DataSet(object):
         self.n_valid = len(self.valid_data)
 
 
-if __name__ == '__main__':
-    dataset = DataSet('svhn', '/home/mlg/ihcho/data', True)
-    # iter = dataset.iter(100, [0, 1, 2, 3, 4], which='train')
+# if __name__ == '__main__':
+    # dataset = DataSet('cifar10', '/home/mlg/ihcho/data', 'tanh')
+    # iter = dataset.iter(1000, which='train')
     # data, label = iter.next()
+    # print data.max(), data.min()
 
     # aa = []
     # for k in range(10):

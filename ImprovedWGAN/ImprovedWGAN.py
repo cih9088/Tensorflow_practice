@@ -46,7 +46,7 @@ class ImprovedWGAN(object):
         self.build_model()
 
     def load_data(self, data_dir):
-        self.data_set = DataSet(self.data, data_dir, normalise=True)
+        self.data_set = DataSet(self.data, data_dir, normalise='sigmoid')
 
         self.height  = self.data_set.data_shape[0]
         self.width   = self.data_set.data_shape[1]
