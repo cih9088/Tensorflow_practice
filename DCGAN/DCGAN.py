@@ -12,6 +12,10 @@ from tf_utils.data.dataset import DataSet
 from tqdm import tqdm
 
 
+def leaky_relu(x, leak=0.2, name='leaky_relu'):
+    return tf.maximum(x, leak * x)
+
+
 class DCGAN(object):
     def __init__(
             self, sess, log_dir, data, data_dir,
@@ -45,7 +49,10 @@ class DCGAN(object):
         self.build_model()
 
     def load_data(self, data_dir):
-        self.data_set = DataSet(self.data, data_dir, normalise='sigmoid')
+        if self.data == 'mnist':
+            self.data_set = DataSet(self.data, data_dir, normalise='sigmoid')
+        elif self.data == 'cifar10':
+            self.data_set = DataSet(self.data, data_dir, normalise='tanh')
 
         self.height  = self.data_set.data_shape[0]
         self.width   = self.data_set.data_shape[1]
@@ -144,7 +151,7 @@ class DCGAN(object):
                                 padding='SAME',
                                 normalizer_fn=slim.batch_norm,
                                 normalizer_params=batch_norm_params,
-                                activation_fn=common.leaky_relu):
+                                activation_fn=leaky_relu):
 
                 if self.data == 'cifar10':
                     net = slim.conv2d(x, 64, 5, 2, normalizer_fn=None, scope='conv1')
@@ -210,7 +217,7 @@ class DCGAN(object):
                         activation_fn=tf.nn.relu, scope='fc2')
                     net = tf.reshape(net, [-1, dim, dim, 128])
                     net = slim.conv2d_transpose(net, 128, 5, 2, scope='deconv1')
-                    net = slim.conv2d_transpose(net, 1, 5, 2, normalizer_fn=None, activation_fn=tf.sigmoid, scope='deconv2')
+                    net = slim.conv2d_transpose(net, 1, 5, 2, normalizer_fn=None, activation_fn=tf.nn.tanh, scope='deconv2')
             return net
 
     def train(self, config):
