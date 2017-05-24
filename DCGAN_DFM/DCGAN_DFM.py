@@ -12,6 +12,10 @@ from tf_utils.data.dataset import DataSet
 from tqdm import tqdm
 
 
+def leaky_relu(x, leak=0.2, name='leaky_relu'):
+    return tf.maximum(x, leak * x)
+
+
 class DCGAN_DFM(object):
     def __init__(
             self, sess, log_dir, data, data_dir, lambda_adv, lambda_denoise,
@@ -47,7 +51,10 @@ class DCGAN_DFM(object):
         self.build_model()
 
     def load_data(self, data_dir):
-        self.data_set = DataSet(self.data, data_dir, normalise='sigmoid')
+        if self.data == 'mnist':
+            self.data_set = DataSet(self.data, data_dir, normalise='sigmoid')
+        elif self.data == 'cifar10':
+            self.data_set = DataSet(self.data, data_dir, normalise='tanh')
 
         self.height  = self.data_set.data_shape[0]
         self.width   = self.data_set.data_shape[1]
@@ -108,9 +115,11 @@ class DCGAN_DFM(object):
 
                     # logging tensorboard
                     self.sum_list.append(
-                        tf.summary.scalar('tower_{}/discriminator_loss'.format(i), D_loss))
+                        tf.summary.scalar('discriminator_loss', D_loss))
                     self.sum_list.append(
-                        tf.summary.scalar('tower_{}/generator_loss'.format(i), G_loss))
+                        tf.summary.scalar('generator_loss', G_loss))
+                    self.sum_list.append(
+                        tf.summary.scalar('denoiser_loss', Denoise_loss))
 
                     # Reuse variables for the next tower
                     # tf.get_variable_scope().reuse_variables()
@@ -172,7 +181,7 @@ class DCGAN_DFM(object):
                                 padding='SAME',
                                 normalizer_fn=slim.batch_norm,
                                 normalizer_params=batch_norm_params,
-                                activation_fn=common.leaky_relu):
+                                activation_fn=leaky_relu):
 
                 if self.data == 'cifar10':
                     net = slim.conv2d(x, 64, 5, 2, normalizer_fn=None, scope='conv1')
@@ -228,7 +237,7 @@ class DCGAN_DFM(object):
                     net = slim.conv2d_transpose(net, 512, 5, 2, scope='deconv1')
                     net = slim.conv2d_transpose(net, 256, 5, 2, scope='deconv2')
                     net = slim.conv2d_transpose(net, 128, 5, 2, scope='deconv3')
-                    net = slim.conv2d_transpose(net, 3, 5, 2, normalizer_fn=None, activation_fn=tf.sigmoid, scope='deconv4')
+                    net = slim.conv2d_transpose(net, 3, 5, 2, normalizer_fn=None, activation_fn=tf.nn.tanh, scope='deconv4')
                 elif self.data == 'mnist':
                     net = slim.fully_connected(
                         z, 1024,
@@ -316,6 +325,7 @@ class DCGAN_DFM(object):
         n_train = self.data_set.n_train
         total_batch = int(np.floor(n_train / (self.batch_size * self.n_gpu)))
 
+        step = counter * total_batch
         for epoch in xrange(config.max_epoch + 1):
             d_total_loss = g_total_loss = denoise_total_loss = 0
             with tqdm(total=total_batch, leave=False) as pbar:
@@ -338,7 +348,7 @@ class DCGAN_DFM(object):
                     summary = self.sess.run(
                         self.merged, feed_dict={self.input_x: batch,
                                                 self.is_training: True})
-                    self.board_writer.add_summary(summary, counter)
+                    self.board_writer.add_summary(summary, step)
 
                     d_total_loss += np.array(d_losses).mean()
                     g_total_loss += np.array(g_losses).mean()
@@ -356,6 +366,7 @@ class DCGAN_DFM(object):
                         gen_tiled_imgs = gen_tiled_imgs[:, :, ::-1]
                         cv2.imshow('generated data', gen_tiled_imgs)
                         cv2.waitKey(1)
+                    step += 1
 
             # monitor training data
             if config.monitor:
