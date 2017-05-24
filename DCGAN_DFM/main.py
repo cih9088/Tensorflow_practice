@@ -8,7 +8,7 @@ import tensorflow as tf
 import pprint
 
 flags = tf.app.flags
-flags.DEFINE_integer('batch_size', 100, 'Size of batches to use')
+flags.DEFINE_integer('batch_size', 128, 'Size of batches to use')
 flags.DEFINE_float('g_lr', 0.0001, 'Learning rate for generator')
 flags.DEFINE_float('d_lr', 0.0001, 'Learning rate for discriminator')
 flags.DEFINE_float('denoise_lr', 0.0001, 'Learning rate for denoiser')
