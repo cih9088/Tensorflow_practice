@@ -1,5 +1,6 @@
 import numpy as np
 
+"""deprecated functions"""
 def data_label_iterate(data, label, batch_size):
     """ A simple data iterator """
     batch_idx = 0
@@ -20,6 +21,7 @@ def data_label_iterate(data, label, batch_size):
         yield data_batch, label_batch
 
 
+"""deprecated functions"""
 def data_iterate(data, batch_size):
     """ A simple data iterator """
     batch_idx = 0
