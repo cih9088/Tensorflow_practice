@@ -161,7 +161,7 @@ class DCGAN(object):
                     net = slim.flatten(net)
                     net = slim.fully_connected(
                         net, 1024,
-                        activation_fn=common.leaky_relu,
+                        activation_fn=leaky_relu,
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params, scope='fc1')
                     logits = slim.fully_connected(net, 1, activation_fn=None, scope='fc2')
@@ -172,7 +172,7 @@ class DCGAN(object):
                     net = slim.flatten(net)
                     net = slim.fully_connected(
                         net, 1024,
-                        activation_fn=common.leaky_relu,
+                        activation_fn=leaky_relu,
                         normalizer_fn=slim.batch_norm,
                         normalizer_params=batch_norm_params, scope='fc1')
                     logits = slim.fully_connected(net, 1, activation_fn=None, scope='fc2')
@@ -203,7 +203,7 @@ class DCGAN(object):
                     net = slim.conv2d_transpose(net, 512, 5, 2, scope='deconv1')
                     net = slim.conv2d_transpose(net, 256, 5, 2, scope='deconv2')
                     net = slim.conv2d_transpose(net, 128, 5, 2, scope='deconv3')
-                    net = slim.conv2d_transpose(net, 3, 5, 2, normalizer_fn=None, activation_fn=tf.sigmoid, scope='deconv4')
+                    net = slim.conv2d_transpose(net, 3, 5, 2, normalizer_fn=None, activation_fn=tf.nn.tanh, scope='deconv4')
                 elif self.data == 'mnist':
                     net = slim.fully_connected(
                         z, 1024,
@@ -217,7 +217,7 @@ class DCGAN(object):
                         activation_fn=tf.nn.relu, scope='fc2')
                     net = tf.reshape(net, [-1, dim, dim, 128])
                     net = slim.conv2d_transpose(net, 128, 5, 2, scope='deconv1')
-                    net = slim.conv2d_transpose(net, 1, 5, 2, normalizer_fn=None, activation_fn=tf.nn.tanh, scope='deconv2')
+                    net = slim.conv2d_transpose(net, 1, 5, 2, normalizer_fn=None, activation_fn=tf.nn.sigmoid, scope='deconv2')
             return net
 
     def train(self, config):
