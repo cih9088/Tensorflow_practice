@@ -10,6 +10,7 @@ def scale_to_sigmoid_interval(ndar, eps=1e-8):
     ndar = ndar * scale
     return ndar
 
+
 def sacle_to_tanh_interval(ndar, eps=1e-8):
     """ Scales all values in the ndarray ndar to be between -1 and 1 """
     ndar = ndar.copy()
@@ -25,26 +26,27 @@ class DataSet(object):
         self.data = data
         self.data_dir = data_dir
 
-        self.train_data  = None
-        self.train_label = None
-        self.test_data   = None
-        self.test_label  = None
-        self.valid_data  = None
-        self.valid_label = None
-        self.n_train     = 0
-        self.n_test      = 0
-        self.n_valid     = 0
-        self.lable_class = None
-        self.n_label     = None
-        self.data_shape  = None
+        self.train_data  = None     # training data [N, Feature]
+        self.train_label = None     # training label [N, 1]
+        self.test_data   = None     # test data [N, Feature]
+        self.test_label  = None     # test label [N, 1]
+        self.valid_data  = None     # validation data [N, Feature]
+        self.valid_label = None     # validation label [N, 1]
+        self.n_train     = 0        # the number of training data [scalar]
+        self.n_test      = 0        # the number of test data [scalar]
+        self.n_valid     = 0        # the number of validation data [saclar]
+        self.n_label     = 0        # the number of label category [scalar]
+        self.lable_class = None     # label category [vector]
+        self.data_shape  = None     # data shape
+        self.C_order     = None     # channel order (None, RGB, BGR)
 
         self._load_data()
 
         if normalise == 'sigmoid':
-            self._normalise()
+            self._normalise_sigmoid()
         elif normalise == 'tanh':
             self._normalise_tanh()
-        elif normalise == 'None':
+        elif normalise is None:
             pass
         else:
             raise ValueError('Incorrect normalise param {}'.format(normalise))
@@ -66,14 +68,17 @@ class DataSet(object):
             import cifar10_data
             self.train_data, self.train_label = cifar10_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar10_data.load(self.data_dir, 'test')
+            self.C_order = 'RGB'
         elif self.data == 'cifar100':
             import cifar100_data
             self.train_data, self.train_label = cifar100_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar100_data.load(self.data_dir, 'test')
+            self.C_order = 'RGB'
         elif self.data == 'svhn':
             import svhn_data
             self.train_data, self.train_label = svhn_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = svhn_data.load(self.data_dir, 'test')
+            self.C_order = 'RGB'
         elif self.data == 'mog':
             n_mixture = 8
             std       = 0.01
@@ -85,7 +90,7 @@ class DataSet(object):
             self.valid_data, self.valid_label = self.sample_mog(
                 10000, n_mixture, std, radius)
         else:
-            raise ValueError('data argument must be in range [mnist, nmnist, cifar10, mog]')
+            raise ValueError('data argument must be in range [mnist, nmnist, cifar10, svhn, mog]')
 
         if self.train_data is not None:
             self.n_train = len(self.train_data)
@@ -99,7 +104,7 @@ class DataSet(object):
 
         self.data_shape = self.train_data.shape[1:]
 
-    def _normalise(self):
+    def _normalise_sigmoid(self):
         if self.n_train != 0:
             self.train_data = scale_to_sigmoid_interval(self.train_data)
         if self.n_test != 0:
@@ -284,10 +289,17 @@ class DataSet(object):
 
 
 # if __name__ == '__main__':
-    # dataset = DataSet('cifar10', '/home/mlg/ihcho/data', 'tanh')
+    # dataset = DataSet('cifar100', '/home/mlg/ihcho/data', None)
     # iter = dataset.iter(1000, which='train')
     # data, label = iter.next()
-    # print data.max(), data.min()
+    # print data.max(), data.min(), dataset.data_shape
+
+    # import matplotlib.pyplot as plt
+    # plt.figure(0)
+    # plt.imshow(data[0])
+    # plt.figure(1)
+    # plt.imshow(data[0,:,:,::-1])
+    # plt.show()
 
     # aa = []
     # for k in range(10):
