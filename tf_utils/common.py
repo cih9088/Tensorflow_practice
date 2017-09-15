@@ -3,7 +3,31 @@ import sys
 import shutil
 import numpy as np
 import tensorflow as tf
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
+
+import seaborn as sns
+sns.set_context("paper")
+sns.set_style("white")
+
+def get_one_hot(label):
+    one_hot = np.zeros((label.shape[0], 5))
+    one_hot[np.arange(label.shape[0]), label.astype(int)] = 1
+    return one_hot
+
+
+def image_mix(input, num=2):
+    batch_size = input.shape[0]
+    idx = np.random.randint(0, batch_size, size=[batch_size, num])
+
+    data = np.zeros(input.shape)
+    for i in range(num):
+        data += 0.5 * input[idx[:, i]]
+
+    data[data >= 1.0] = 1.0
+    # data = common.scale_to_unit_interval(data)
+    return data
 
 
 class Logger(object):
@@ -59,12 +83,7 @@ def average_gradient(tower_grads):
 
     return average_grads
 
-
-def leaky_relu(x, leak=0.1, name='leaky_relu'):
-    return tf.maximum(x, leak * x)
-
-
-def show_roc(y_true, y_score, f=1):
+def show_roc(y_true, y_score, title, f=1):
     from sklearn.metrics import roc_curve, auc
     from scipy.optimize import brentq
     from scipy.interpolate import interp1d
@@ -78,25 +97,32 @@ def show_roc(y_true, y_score, f=1):
     plt.figure(f)
     plt.clf()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='(AUC = {:.4f}, EER = {:.4f})'.format(roc_auc, eer))
+    print('{}\tAUC: {}, EER: {}'.format(title, roc_auc, eer))
     # plt.plot(fpr, tpr, color='darkorange', lw=2, label='(AUC = {:.4f})'.format(roc_auc))
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
     plt.ylim([0.0, 1.05])
     plt.xlabel('False Positive Rate')
     plt.ylabel('True Positive Rate')
-    plt.title('Receiver operating characteristic')
+    plt.title(title)
     plt.legend(loc='lower right')
-    plt.pause(0.05)
 
 
-def show_hist(known, unknown, generated, f=1):
-    plt.figure(f)
-    plt.clf()
-    plt.hist(known, normed=1, bins=50, alpha=0.5, label='known')
-    plt.hist(unknown, normed=1, bins=50, alpha=0.5, label='unknown')
-    plt.hist(generated, normed=1, bins=50, alpha=0.5, label='generated')
-    plt.legend()
-    plt.pause(0.05)
+def show_hist(data, label, title, f=1):
+    assert len(data) == len(label)
+
+    fig = plt.figure(num=f)
+    fig.clf()
+    fig, ax = plt.subplots(num=f)
+
+    for i in range(len(data)):
+        sns.kdeplot(data[i], label=label[i], shade=True, shade_lowest=False, ax=ax)
+
+    ax.relim()
+    ax.autoscale()
+    ax.set_ylim(0, None)
+    ax.set_title(title)
+    ax.legend()
 
 
 def delete_and_create_directory(path):
@@ -126,15 +152,49 @@ def plot_img(img, title):
     plt.axis('off')
     plt.tight_layout()
 
+    assert len(data) == len(label)
 
-def plot_generative_output(sample_tensor, input_tensor, output_tensor, examples=8):
+    fig = plt.figure(num=f)
+    fig.clf()
+    fig, ax = plt.subplots(num=f)
+
+    for i in range(len(data)):
+        sns.kdeplot(data[i], label=label[i], shade=True, shade_lowest=False, ax=ax)
+
+    ax.relim()
+    ax.autoscale()
+    ax.set_ylim(0, None)
+    ax.set_title(title)
+    ax.legend()
+
+def plot_output(data, label, title='plot', examples=8, f=1):
     """ Just plots the output of the network, error, reconstructions, etc
     """
+    assert len(data) == len(label)
+
+    nrows = len(data)
+
+    fig = plt.figure(num=f)
+    fig.clf()
+    fig, ax = plt.subplots(nrows=nrows, ncols=examples, figsize=(18, 6), num=f)
+    for i in xrange(examples):
+        for j in xrange(nrows):
+            ax[(j, i)].imshow(np.squeeze(data[j][i]), cmap=plt.cm.gray, interpolation='nearest')
+            ax[(j, i)].axis('off')
+
+    # fig.suptitle('Top: random points in z space | Middle: inputs | Bottom: reconstructions')
+
+def plot_generative_output(gens, inputs, reconsts, examples=8):
+    """ Just plots the output of the network, error, reconstructions, etc
+    """
+    gens = img_stretch(np.squeeze(gens))
+    inputs = img_stretch(np.squeeze(inputs))
+    reconsts = img_stretch(np.squeeze(reconsts))
     fig, ax = plt.subplots(nrows=3, ncols=examples, figsize=(18, 6))
     for i in xrange(examples):
-        ax[(0, i)].imshow(sample_tensor[i], cmap=plt.cm.gray, interpolation='nearest')
-        ax[(1, i)].imshow(input_tensor[i], cmap=plt.cm.gray, interpolation='nearest')
-        ax[(2, i)].imshow(output_tensor[i], cmap=plt.cm.gray, interpolation='nearest')
+        ax[(0, i)].imshow(gens[i], cmap=plt.cm.gray, interpolation='nearest')
+        ax[(1, i)].imshow(inputs[i], cmap=plt.cm.gray, interpolation='nearest')
+        ax[(2, i)].imshow(reconsts[i], cmap=plt.cm.gray, interpolation='nearest')
         ax[(0, i)].axis('off')
         ax[(1, i)].axis('off')
         ax[(2, i)].axis('off')
