@@ -17,7 +17,7 @@ def get_one_hot(label):
     return one_hot
 
 
-def image_mix(input, num=2):
+def image_mix(input, normalise='sigmoid', num=2):
     batch_size = input.shape[0]
     idx = np.random.randint(0, batch_size, size=[batch_size, num])
 
@@ -25,7 +25,14 @@ def image_mix(input, num=2):
     for i in range(num):
         data += 0.5 * input[idx[:, i]]
 
-    data[data >= 1.0] = 1.0
+    if normalise == 'sigmoid':
+        data[data >= 1.0] = 1.0
+        data[data <= 0] = 0
+    elif normalise == 'tanh':
+        data[data >= 1.0] = 1.0
+        data[data <= -1.0] = -1.0
+    else:
+        raise ValueError('range must be either sigmoid or tanh')
     # data = common.scale_to_unit_interval(data)
     return data
 
@@ -106,6 +113,8 @@ def show_roc(y_true, y_score, title, f=1):
     plt.ylabel('True Positive Rate')
     plt.title(title)
     plt.legend(loc='lower right')
+
+    return roc_auc, eer
 
 
 def show_hist(data, label, title, f=1):
