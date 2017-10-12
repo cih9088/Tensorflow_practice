@@ -11,6 +11,11 @@ import seaborn as sns
 sns.set_context("paper")
 sns.set_style("white")
 
+
+def leaky_relu(x, leak=0.2, name='leaky_relu'):
+    return tf.maximun(x, leak * x)
+
+
 def get_one_hot(label):
     one_hot = np.zeros((label.shape[0], 5))
     one_hot[np.arange(label.shape[0]), label.astype(int)] = 1
