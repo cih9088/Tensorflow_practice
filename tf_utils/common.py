@@ -13,7 +13,7 @@ sns.set_style("white")
 
 
 def leaky_relu(x, leak=0.2, name='leaky_relu'):
-    return tf.maximun(x, leak * x)
+    return tf.maximum(x, leak * x)
 
 
 def get_one_hot(label):
