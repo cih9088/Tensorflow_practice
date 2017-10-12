@@ -90,7 +90,7 @@ def average_gradient(tower_grads):
 
     return average_grads
 
-def show_roc(y_true, y_score, title, f=1):
+def show_roc(y_true, y_score, title, f=1, monitor=True):
     from sklearn.metrics import roc_curve, auc
     from scipy.optimize import brentq
     from scipy.interpolate import interp1d
@@ -104,7 +104,8 @@ def show_roc(y_true, y_score, title, f=1):
     plt.figure(f)
     plt.clf()
     plt.plot(fpr, tpr, color='darkorange', lw=2, label='(AUC = {:.4f}, EER = {:.4f})'.format(roc_auc, eer))
-    print('{}\tAUC: {}, EER: {}'.format(title, roc_auc, eer))
+    if monitor:
+        print('{}\tAUC: {}, EER: {}'.format(title, roc_auc, eer))
     # plt.plot(fpr, tpr, color='darkorange', lw=2, label='(AUC = {:.4f})'.format(roc_auc))
     plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
     plt.xlim([0.0, 1.0])
