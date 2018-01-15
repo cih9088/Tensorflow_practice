@@ -11,6 +11,38 @@ import seaborn as sns
 sns.set_context("paper")
 sns.set_style("white")
 
+def image_whitening(image_np):
+    """
+    Performs per_image_whitening
+    
+    Args:
+        image_np: a 4D numpy array representing a batch of images
+    Returns:
+        the image numpy array after whitened
+    """
+
+    batch, height, width, channel = image_np.shape()
+
+    for i in range(len(image_np)):
+        mean = np.mean(image_np[i, ...])
+        # Use adjusted standard deviation here, in case the std == 0.
+        std = np.max([np.std(image_np[i, ...]), 1.0/np.sqrt(height * width * channel)])
+        image_np[i, ...] = (image_np[i, ...] - mean) / std
+
+    return image_np
+
+# def image_flipping(image, axis):
+    # """
+    # Flip an image with probability of prob
+
+    # Args:
+        # image: a 3 dimensional numpy array representing an image
+        # axis: 0 for vertical flip and 1 for horizontal_flip
+        # prob: a probability for flipping
+    # Returns:
+        # the image numpy array arter flipping
+    # """
+
 
 def leaky_relu(x, leak=0.2, name='leaky_relu'):
     return tf.maximum(x, leak * x)
