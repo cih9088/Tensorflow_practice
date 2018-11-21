@@ -14,7 +14,7 @@ sns.set_style("white")
 def image_whitening(image_np):
     """
     Performs per_image_whitening
-    
+
     Args:
         image_np: a 4D numpy array representing a batch of images
     Returns:
@@ -318,7 +318,7 @@ def conv_filter_tile(filters):
         filters = np.resize(filters, (n_filters * n_channels, height, width))
     filters = img_stretch(filters)
     return img_tile(filters, tile_shape=tile_shape)
-    
+
 
 def scale_to_unit_interval(ndar, eps=1e-8):
     """ Scales all values in the ndarray ndar to be between 0 and 1 """
