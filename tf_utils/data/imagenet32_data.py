@@ -13,7 +13,7 @@ def maybe_download_and_extract(data_dir, url='http://www.cs.toronto.edu/~kriz/ci
         filepath = os.path.join(data_dir, filename)
         if not os.path.exists(filepath):
             def _progress(count, block_size, total_size):
-                sys.stdout.write('\r>> Downloading %s to %s %.1f%%' % (filename, data_dir,
+                sys.stdout.write('\r>> Downloading %s %.1f%%' % (filename,
                     float(count * block_size) / float(total_size) * 100.0))
                 sys.stdout.flush()
             filepath, _ = urllib.request.urlretrieve(url, filepath, _progress)
@@ -24,20 +24,21 @@ def maybe_download_and_extract(data_dir, url='http://www.cs.toronto.edu/~kriz/ci
 
 def unpickle(file):
     fo = open(file, 'rb')
-    d = pickle.load(fo, encoding='latin1')
+    d = pickle.load(fo)
     fo.close()
-    return {'x': np.cast[np.uint8]((np.transpose(d['data'].reshape((10000,3,32,32)), (0, 2, 3, 1)))),
+    return {'x': np.cast[np.uint8]((np.transpose(d['data'].reshape((d['data'].shape[0],3,32,32)), (0, 2, 3, 1)))),
             'y': np.array(d['labels']).astype(np.uint8)}
 
 def load(data_dir, subset='train'):
-    maybe_download_and_extract(data_dir)
+    maybe_download_and_extract(data_dir, 'http://www.image-net.org/image/downsample/Imagenet32_val.zip')
+    maybe_download_and_extract(data_dir, 'http://www.image-net.org/image/downsample/Imagenet32_train.zip')
     if subset=='train':
-        train_data = [unpickle(os.path.join(data_dir,'cifar-10-batches-py/data_batch_' + str(i))) for i in range(1,6)]
-        trainx = np.concatenate([d['x'] for d in train_data],axis=0)
-        trainy = np.concatenate([d['y'] for d in train_data],axis=0)
+        train_data = [unpickle(os.path.join(data_dir,'Imagenet32_train/train_data_batch_{}'.format(i))) for i in range(1,11)]
+        trainx = np.concatenate([d['x'] for d in train_data], axis=0)
+        trainy = np.concatenate([d['y'] for d in train_data], axis=0)
         return trainx, trainy
     elif subset=='test':
-        test_data = unpickle(os.path.join(data_dir,'cifar-10-batches-py/test_batch'))
+        test_data = unpickle(os.path.join(data_dir,'Imagenet32_val/val_data'))
         testx = test_data['x']
         testy = test_data['y']
         return testx, testy

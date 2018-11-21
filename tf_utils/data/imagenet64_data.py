@@ -24,20 +24,26 @@ def maybe_download_and_extract(data_dir, url='http://www.cs.toronto.edu/~kriz/ci
 
 def unpickle(file):
     fo = open(file, 'rb')
-    d = pickle.load(fo, encoding='latin1')
+    d = pickle.load(fo)
     fo.close()
-    return {'x': np.cast[np.uint8]((np.transpose(d['data'].reshape((10000,3,32,32)), (0, 2, 3, 1)))),
+    return {'x': np.cast[np.uint8]((np.transpose(d['data'].reshape((d['data'].shape[0],3,64,64)), (0, 2, 3, 1)))),
             'y': np.array(d['labels']).astype(np.uint8)}
 
 def load(data_dir, subset='train'):
-    maybe_download_and_extract(data_dir)
+    maybe_download_and_extract(data_dir, 'http://www.image-net.org/image/downsample/Imagenet64_val.zip')
+    maybe_download_and_extract(data_dir, 'http://www.image-net.org/image/downsample/Imagenet64_train_part1.zip')
+    maybe_download_and_extract(data_dir, 'http://www.image-net.org/image/downsample/Imagenet64_train_part2.zip')
     if subset=='train':
-        train_data = [unpickle(os.path.join(data_dir,'cifar-10-batches-py/data_batch_' + str(i))) for i in range(1,6)]
-        trainx = np.concatenate([d['x'] for d in train_data],axis=0)
-        trainy = np.concatenate([d['y'] for d in train_data],axis=0)
+        train_data = [unpickle(os.path.join(data_dir,'Imagenet64_train_part1/train_data_batch_{}'.format(i))) for i in range(1,6)]
+        train_data += [unpickle(os.path.join(data_dir,'Imagenet64_train_part2/train_data_batch_{}'.format(i))) for i in range(6,11)]
+        trainx = np.concatenate([d['x'] for d in train_data], axis=0)
+        trainy = np.concatenate([d['y'] for d in train_data], axis=0)
+        #  train_data = unpickle(os.path.join(data_dir,'Imagenet64_train_part1/train_data_batch_1'))
+        #  trainx = train_data['x']
+        #  trainy = train_data['y']
         return trainx, trainy
     elif subset=='test':
-        test_data = unpickle(os.path.join(data_dir,'cifar-10-batches-py/test_batch'))
+        test_data = unpickle(os.path.join(data_dir,'Imagenet64_val/val_data'))
         testx = test_data['x']
         testy = test_data['y']
         return testx, testy

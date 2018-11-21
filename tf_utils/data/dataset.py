@@ -3,7 +3,7 @@ import numpy as np
 
 def scale_to_sigmoid_interval(ndar, eps=1e-8):
     """ Scales all values in the ndarray ndar to be between 0 and 1 """
-    ndar = ndar.copy()
+    #  ndar = ndar.copy()
     ndar = ndar.astype(np.float32)
     ndar -= ndar.min()
     scale = 1.0 / (ndar.max() + eps)
@@ -13,7 +13,7 @@ def scale_to_sigmoid_interval(ndar, eps=1e-8):
 
 def sacle_to_tanh_interval(ndar, eps=1e-8):
     """ Scales all values in the ndarray ndar to be between -1 and 1 """
-    ndar = ndar.copy()
+    #  ndar = ndar.copy()
     ndar = ndar.astype(np.float32)
     ndar -= (ndar.min() + ndar.max()) / 2
     scale = 1.0 / (ndar.max() + eps)
@@ -22,9 +22,10 @@ def sacle_to_tanh_interval(ndar, eps=1e-8):
 
 
 class DataSet(object):
-    def __init__(self, data, data_dir, normalise='None'):
+    def __init__(self, data, data_dir, data_format, normalise='None'):
         self.data = data
         self.data_dir = data_dir
+        self.data_format = data_format
 
         self.train_data  = None     # training data [N, Feature]
         self.train_label = None     # training label [N, 1]
@@ -51,6 +52,14 @@ class DataSet(object):
         else:
             raise ValueError('Incorrect normalise param {}'.format(normalise))
 
+        if self.data_format == 'NCHW':
+            if self.train_data is not None:
+                self.train_data = np.transpose(self.train_data, [0, 3, 1, 2])
+            if self.test_data is not None:
+                self.test_data = np.transpose(self.test_data, [0, 3, 1, 2])
+            if self.valid_data is not None:
+                self.valid_data = np.transpose(self.valid_data, [0, 3, 1, 2])
+
     def _load_data(self):
         if self.data == 'mnist':
             import mnist_data
@@ -65,7 +74,8 @@ class DataSet(object):
             self.train_data, self.train_label = nmnist_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = nmnist_data.load(self.data_dir, 'test')
         elif self.data == 'cifar10':
-            import cifar10_data
+            #  import cifar10_data
+            import tf_utils.data.cifar10_data as cifar10_data
             self.train_data, self.train_label = cifar10_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar10_data.load(self.data_dir, 'test')
             self.C_order = 'RGB'
@@ -73,6 +83,18 @@ class DataSet(object):
             import cifar100_data
             self.train_data, self.train_label = cifar100_data.load(self.data_dir, 'train')
             self.test_data, self.test_label = cifar100_data.load(self.data_dir, 'test')
+            self.C_order = 'RGB'
+        elif self.data == 'imagenet64':
+            #  import imagenet64_data
+            import tf_utils.data.imagenet64_data as imagenet64_data
+            self.train_data, self.train_label = imagenet64_data.load(self.data_dir, 'train')
+            self.test_data, self.test_label = imagenet64_data.load(self.data_dir, 'test')
+            self.C_order = 'RGB'
+        elif self.data == 'imagenet32':
+            #  import imagenet32_data
+            import tf_utils.data.imagenet32_data as imagenet32_data
+            self.train_data, self.train_label = imagenet32_data.load(self.data_dir, 'train')
+            self.test_data, self.test_label = imagenet32_data.load(self.data_dir, 'test')
             self.C_order = 'RGB'
         elif self.data == 'svhn':
             import svhn_data
@@ -139,25 +161,25 @@ class DataSet(object):
         """ A simple data iterator """
         data, label = self._data_selection(which)
 
-        if request_label is None:
-            request_label = self.label_class
-
-        # error check
-        ctr = 0
-        for i in request_label:
-            for j in self.label_class:
-                if i == j:
-                    ctr += 1
-                    break
-        if ctr != len(request_label):
-            raise ValueError('Incorrect requested label {}'.format(request_label))
-
-        idx = []
-        for i in request_label:
-            idx.append(np.where(label == i)[0])
-        idx = np.concatenate(idx)
-        data = data[idx]
-        label = label[idx]
+        #  if request_label is None:
+        #      request_label = self.label_class
+        #
+        #  # error check
+        #  ctr = 0
+        #  for i in request_label:
+        #      for j in self.label_class:
+        #          if i == j:
+        #              ctr += 1
+        #              break
+        #  if ctr != len(request_label):
+        #      raise ValueError('Incorrect requested label {}'.format(request_label))
+        #
+        #  idx = []
+        #  for i in request_label:
+        #      idx.append(np.where(label == i)[0])
+        #  idx = np.concatenate(idx)
+        #  data = data[idx]
+        #  label = label[idx]
 
         batch_idx = 0
         idxs = np.arange(0, len(data))
@@ -166,7 +188,6 @@ class DataSet(object):
             cur_idxs = idxs[batch_idx:batch_idx + batch_size]
             data_batch = data[cur_idxs]
             label_batch = label[cur_idxs]
-            # print data_batch.shape, label_batch.shape
             yield data_batch, label_batch
 
     def get_num_data(self, request_label=None, which='train'):
@@ -311,7 +332,7 @@ class DataSet(object):
     # for k in range(10):
         # aa.append(np.sum(label == k))
     # print aa
-    
+
     # dataset = DataSet('mog', '/home/mlg/ihcho/data', False)
     # data, label = dataset.get_data(1000, [3, 4, 7])
     # import matplotlib.pyplot as plt
